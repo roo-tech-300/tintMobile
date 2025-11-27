@@ -1,0 +1,19 @@
+[
+  { "id": "CPT", "name": "Computer Science", "faculty": "SICT" },
+  { "id": "MEE", "name": "Mechanical Engineering", "faculty": "SIPET" },
+  { "id": "CPE", "name": "Computer Engineering", "faculty": "SEET" },
+  { "id": "PHY", "name": "Physics", "faculty": "SPS" },
+  { "id": "SVG", "name": "Survey and Geoinformatics", "faculty": "SET" },
+  { "id": "BCM", "name": "Biochemistry", "faculty": "SLS" },
+  { "id": "AET", "name": "Agricultural Extension and Rural Development", "faculty": "SAAT" },
+  { "id": "PMT", "name": "Project Management Technology", "faculty": "SEMPT" },
+  { "id": "MED", "name": "Medecine", "faculty": "HMT" },
+  { "id": "MCE", "name": "Mechatronics Engineering", "faculty": "SEET" },
+  { "id": "EEE", "name": "Electrical and Electronics Engineering", "faculty": "SEET" },
+  { "id": "CIE", "name": "Civil Engineering", "faculty": "SIPET" },
+  { "id": "ABE", "name": "Agricultural and Bioresource Engineering", "faculty": "SIPET" },
+  { "id": "MME", "name": "Material and Metallurgical Engineering Engineering", "faculty": "SIPET" },
+  { "id": "PGE", "name": "Petroleum and Gas Engineering", "faculty": "SIPET" },
+  { "id": "CHE", "name": "Chemical Engineering", "faculty": "SIPET" }
+
+]
