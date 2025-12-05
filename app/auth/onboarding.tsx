@@ -1,5 +1,15 @@
 // app/onboarding.tsx
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { updateDbUser, uploadAvatar } from '@/appwrite/apis/auth';
+import DatePickerModal from '@/components/DatePicker';
+import DepartmentDropdown from '@/components/DepartmentDropdown';
+import DotIndicator from '@/components/DotIndicator';
+import TintIcon from '@/components/Icon';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import PrimaryBtn from '@/components/PrimaryBtn';
+import TextPut from '@/components/TextPut';
+import { useAuth } from '@/context/AuthContext';
+import departments from '@/data/departments.json'; // see file below
+import { borderRadius, colors, fonts } from '@/theme/theme';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
@@ -18,20 +28,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import DatePickerModal from '@/components/DatePicker';
-import DepartmentDropdown from '@/components/DepartmentDropdown';
-import DotIndicator from '@/components/DotIndicator';
-import TintIcon from '@/components/Icon';
-import PrimaryBtn from '@/components/PrimaryBtn';
-import TextPut from '@/components/TextPut';
-import departments from '@/data/departments.json'; // see file below
-import { borderRadius, colors, fonts } from '@/theme/theme';
-
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SLIDE_COUNT = 5;
 
 export default function Onboarding() {
   const router = useRouter();
+  const { user, refreshUser } = useAuth();
   const scrollRef = useRef<ScrollView | null>(null);
   const [index, setIndex] = useState(0);
 
@@ -39,12 +41,32 @@ export default function Onboarding() {
   const [username, setUsername] = useState('');
   const [selectedDept, setSelectedDept] = useState<string | null>(null);
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
-  const [level, setLevel] = useState<string | null>(null);
   const [dob, setDob] = useState<string | null>(null); // ISO string or display
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [dobDate, setDobDate] = useState(new Date(2000, 0, 1));
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateModal, setDateModal] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+
+  const validateUsername = (name: string) => {
+    // 1. Regex for allowed chars, length (3-20), start/end with alphanumeric
+    const mainRegex = /^[a-z0-9](?:[a-z0-9._]{1,18}[a-z0-9])$/;
+    // 2. Regex for no consecutive dots/underscores
+    const noConsecutiveSpecial = /^(?!.*[._]{2})/;
+
+    if (!name) return "Username is required";
+    if (name.length < 3) return "Username must be at least 3 characters";
+    if (name.length > 20) return "Username must be at most 20 characters";
+    if (!mainRegex.test(name)) {
+      if (/^[^a-z0-9]/.test(name)) return "Must start with a letter or number";
+      if (/[^a-z0-9]$/.test(name)) return "Must end with a letter or number";
+      if (/[^a-z0-9._]/.test(name)) return "Only letters, numbers, . and _ allowed";
+      return "Invalid username format";
+    }
+    if (!noConsecutiveSpecial.test(name)) return "Cannot have consecutive . or _";
+
+    return "";
+  };
 
   // handle dept selection -> auto fill faculty & default level
   const onSelectDept = (deptId: string) => {
@@ -82,16 +104,67 @@ export default function Onboarding() {
   };
 
   const handleFinish = async () => {
-    const payload = {
-      username: username || null,
-      department: selectedDept,
-      faculty: selectedFaculty,
-      level,
-      dob,
-      avatarUri,
-    };
-    console.log('Onboarding payload:', payload);
-    router.replace('/auth/login');
+    setIsUploading(true); // Start loading
+
+    const payload: Record<string, string | boolean> = {};
+
+    if (username && username.trim()) {
+      const error = validateUsername(username.trim());
+      if (error) {
+        setUsernameError(error);
+        goTo(1); // Go back to username slide
+        setIsUploading(false);
+        return;
+      }
+      payload.username = username.trim();
+    }
+    if (selectedDept) {
+      payload.department = selectedDept;
+    }
+    if (dob) {
+      payload.birthday = dob;
+    }
+
+    // Mark onboarding as complete
+    payload.onBoarding = true;
+
+    console.log('Onboarding payload (before avatar upload):', payload);
+
+    // Only update if we have a user ID
+    if (user?.$id) {
+      try {
+        // Upload avatar first if one was selected
+        if (avatarUri) {
+          console.log('Uploading avatar...');
+          try {
+            const avatarFileId = await uploadAvatar(avatarUri);
+            payload.avatar = avatarFileId;
+            console.log('Avatar uploaded successfully. File ID:', avatarFileId);
+          } catch (uploadError) {
+            console.error('Error uploading avatar:', uploadError);
+            Alert.alert('Upload Error', 'Failed to upload avatar. Continuing without it.');
+          }
+        }
+
+        console.log('Final payload being sent to updateDbUser:', payload);
+
+        // Update user with all data
+        await updateDbUser(user.$id, payload);
+        console.log('User updated successfully');
+        setIsUploading(false);
+
+        await refreshUser();
+        router.replace('/(tabs)/home');
+      } catch (error) {
+        console.error('Error updating user:', error);
+        setIsUploading(false); // Stop loading on error
+        Alert.alert('Error', 'Failed to save your information. Please try again.');
+      }
+    } else {
+      console.warn('No user ID found');
+      setIsUploading(false); // Stop loading on error
+      Alert.alert('Error', 'User not found. Please log in again.');
+    }
   };
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -108,7 +181,7 @@ export default function Onboarding() {
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         allowsEditing: true,
         aspect: [1, 1],
@@ -122,21 +195,7 @@ export default function Onboarding() {
     }
   };
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
-    if (selectedDate) {
-      setDobDate(selectedDate);
-      // setDob(selectedDate.toISOString().slice(0, 10)); // YYYY-MM-DD
 
-      // when receiving `date` from DatePicker
-      const y = selectedDate.getFullYear();
-      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
-      const d = String(selectedDate.getDate()).padStart(2, '0');
-      setDob(`${y}-${m}-${d}`);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.wrapper} edges={['top', 'bottom']}>
@@ -159,21 +218,26 @@ export default function Onboarding() {
         {/* Slide 2 - Username */}
         <View style={styles.slide}>
           <Text style={styles.h1}>What should we call you</Text>
-          <Text style={[styles.h2, {marginBottom: 24}]}>Letters, numbers and underscores only</Text>
+          <Text style={[styles.h2, { marginBottom: 24 }]}>Letters, numbers and underscores only</Text>
 
           <TextPut
             placeholder="username"
             value={username}
-            onChangeText={setUsername}
+            onChangeText={(text) => {
+              setUsername(text.toLowerCase());
+              if (usernameError) setUsernameError("");
+            }}
             autoCapitalize="none"
           />
-          <Text style={styles.helperText}>
-            {/* {username.length === 0
-              ? 'Optional — choose now or skip'
-              : usernameValid(username)
-              ? 'Looks good'
-              : 'Invalid. Use letters, numbers, or underscores (3-30 chars)'} */}
-          </Text>
+          {usernameError ? (
+            <Text style={{ color: colors.error, fontSize: 12, marginTop: 5, textAlign: 'center' }}>
+              {usernameError}
+            </Text>
+          ) : (
+            <Text style={styles.helperText}>
+              Letters, numbers, underscores, periods (3-20 chars)
+            </Text>
+          )}
         </View>
 
         {/* Slide 3 - Department */}
@@ -183,7 +247,7 @@ export default function Onboarding() {
 
           <View style={{ height: 16 }} />
 
-          <DepartmentDropdown 
+          <DepartmentDropdown
             selectedDept={selectedDept}
             onSelectDept={onSelectDept}
           />
@@ -204,23 +268,12 @@ export default function Onboarding() {
               {dob ?? "Select date of birth"}
             </Text>
           </TouchableOpacity>
-
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={dobDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleDateChange}
-              maximumDate={new Date()}
-            />
-          )}
         </View>
 
         {/* Slide 5 - Avatar */}
         <View style={styles.slide}>
           <Text style={styles.h1}>Add a profile photo</Text>
-            <Text style={styles.h2}>You can always change it later</Text>
+          <Text style={styles.h2}>You can always change it later</Text>
           <View style={{ height: 24 }} />
 
           <TouchableOpacity style={styles.avatarPicker} onPress={pickImage}>
@@ -237,7 +290,7 @@ export default function Onboarding() {
       {index === 0 ? (
         // FIRST SCREEN NAVIGATION
         <View style={{ alignItems: "center", marginTop: 30, paddingBottom: 20, marginBottom: 10 }}>
-          <PrimaryBtn 
+          <PrimaryBtn
             title="Next"
             onPress={() => handleNext()}
             style={{ width: "80%" }}
@@ -252,33 +305,49 @@ export default function Onboarding() {
       ) : index === 4 ? (
         // LAST SCREEN - FINISH BUTTON
         <View style={styles.navContainer}>
-            <View style={styles.rowNav}>
-                <TouchableOpacity 
-                    onPress={() => handlePrev()}
-                    style={{paddingVertical: 10, paddingHorizontal: 16}}
-                    >
-                    <Text style={styles.navButton}>Previous</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={() => handleFinish()}
-                    style={{backgroundColor: colors.primary, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 16}}
-                >
-                    <Text style={[styles.navButton, {color: colors.text} ]}>Finish</Text>
-                </TouchableOpacity>
-            </View>
+          <View style={styles.rowNav}>
+            <TouchableOpacity
+              onPress={() => handlePrev()}
+              style={{ paddingVertical: 10, paddingHorizontal: 16 }}
+            >
+              <Text style={styles.navButton}>Previous</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => handleFinish()}
+              disabled={isUploading}
+              style={{
+                backgroundColor: colors.primary,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 10,
+                paddingHorizontal: 16,
+                opacity: isUploading ? 0.7 : 1,
+                minWidth: 80
+              }}
+            >
+              {isUploading ? (
+                <View style={{ height: 24, justifyContent: 'center' }}>
+                  <LoadingSpinner size="small" color={colors.text} message="" />
+                </View>
+              ) : (
+                <Text style={[styles.navButton, { color: colors.text }]}>Finish</Text>
+              )}
+            </TouchableOpacity>
+          </View>
           <DotIndicator index={index} total={5} style={{ marginTop: 16 }} />
         </View>
       ) : (
         // SCREENS 2–4 NAVIGATION
         <View style={styles.navContainer}>
           <View style={styles.rowNav}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => handlePrev()}
             >
               <Text style={styles.navButton}>Previous</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => handleNext()}
             >
               <Text style={styles.navButton}>Next</Text>

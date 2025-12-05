@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 
 type Props = {
-  title: string;
+  title: string | React.ReactNode;
   onPress?: () => void;
   style?: ViewStyle | ViewStyle[];
   textStyle?: TextStyle | TextStyle[];

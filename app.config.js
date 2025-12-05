@@ -1,4 +1,4 @@
-{
+ export default {
   "expo": {
     "name": "Tint-Mobile",
     "slug": "Tint-Mobile",
@@ -14,12 +14,13 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/images/Logo 1.png",
+        "backgroundImage": "./assets/images/Logo 1.png",
+        "monochromeImage": "./assets/images/Logo 1.png",
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.eluzia.TintMobile"
     },
     "web": {
       "output": "static",
@@ -27,6 +28,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
       [
         "expo-splash-screen",
         {
@@ -46,9 +48,13 @@
     },
     "extra": {
       "router": {},
-      "eas": {
-        "projectId": "7fa48483-b064-4e6d-82bb-016b843c0021"
-      }
+        "projectId": "7fa48483-b064-4e6d-82bb-016b843c0021",
+        "appBundleId": process.env.EXPO_PUBLIC_APP_BUNDLE_ID,
+        "appwriteEndpoint": process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
+        "appwriteProjectId": process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID,
+        "databaseId": process.env.EXPO_PUBLIC_DATABASE_ID,
+        "usersCollectionId": process.env.EXPO_PUBLIC_USERS_COLLECTION_ID,
+        "mediaBucketId": process.env.EXPO_PUBLIC_MEDIA_BUCKET_ID
     },
     "owner": "eluzia"
   }

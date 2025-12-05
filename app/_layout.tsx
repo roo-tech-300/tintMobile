@@ -4,7 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { View, Text } from 'react-native';
 import { colors } from '@/theme/theme';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { AuthProvider } from "@/context/AuthContext";
+import AuthGate from '@/context/AuthGate';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -27,14 +28,16 @@ if (!fontsLoaded) {
 
 
   return (
-    <>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      />
+    <AuthProvider>
+      <AuthGate>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        />
+        </AuthGate>
       <StatusBar style="auto" />
-    </>
+    </AuthProvider>
   );
 }

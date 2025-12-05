@@ -18,8 +18,8 @@ const VISIBLE_COUNT = 3; // show only 3 items (up, middle, down)
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const months = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
 ];
 
 type Props = {
@@ -169,10 +169,10 @@ export default function DatePickerModal({
             scrollEventThrottle={8}
             onMomentumScrollEnd={(e) => snapTo(e, monthRef, months.length - 1, setSelectedMonth)}
             contentContainerStyle={{
-                paddingTop: sidePadding,
-                paddingBottom: sidePadding,
+              paddingTop: sidePadding,
+              paddingBottom: sidePadding * 3,
             }}
-              style={{ flex: 1 }}
+            style={{ flex: 1 }}
           >
             {months.map((m, i) => {
               const active = i === selectedMonth;
@@ -199,10 +199,10 @@ export default function DatePickerModal({
             scrollEventThrottle={8}
             onMomentumScrollEnd={(e) => snapTo(e, dayRef, Math.max(0, daysInMonthCount - 1), setSelectedDay)}
             contentContainerStyle={{
-                paddingTop: sidePadding,
-                paddingBottom: sidePadding,
+              paddingTop: sidePadding,
+              paddingBottom: sidePadding * 3,
             }}
-              style={{ flex: 1 }}
+            style={{ flex: 1 }}
           >
             {Array.from({ length: daysInMonthCount }).map((_, i) => {
               const active = i === selectedDay;
@@ -229,10 +229,10 @@ export default function DatePickerModal({
             scrollEventThrottle={8}
             onMomentumScrollEnd={(e) => snapTo(e, yearRef, Math.max(0, years.length - 1), setSelectedYear)}
             contentContainerStyle={{
-                paddingTop: sidePadding,
-                paddingBottom: sidePadding,
+              paddingTop: sidePadding,
+              paddingBottom: sidePadding * 3,
             }}
-              style={{ flex: 1 }}
+            style={{ flex: 1 }}
           >
             {years.map((y, i) => {
               const active = i === selectedYear;
