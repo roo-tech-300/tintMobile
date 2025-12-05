@@ -10,20 +10,36 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (loading) return;
 
     const inAuthGroup = segments[0] === "auth";
+    const inTabs = segments[0] === "(tabs)";
 
+    // ----------------------------
+    // 1. No user → must login
+    // ----------------------------
     if (!user) {
-      // Only redirect to login if we are NOT already in the auth flow
       if (!inAuthGroup) {
         router.replace("/auth/login");
-        console.log("No user, navigating to login.", user);
       }
-    } else if (!user.onBoarding) {       // authenticated → send to main app
-      router.replace("/auth/onboarding")
-      console.log("User is not yet onboarded", user)
-    } else {
-      router.replace("/(tabs)/home")
-      console.log("User is onboarded", user)
+      return;
     }
+
+    // ----------------------------
+    // 2. User exists but NOT onboarded
+    // ----------------------------
+    if (!user.onBoarding) {
+      if (segments[0] !== "auth" || segments[1] !== "onboarding") {
+        router.replace("/auth/onboarding");
+      }
+      return;
+    }
+
+    // ----------------------------
+    // 3. User onboarded → allow navigation
+    // Only redirect to /home if they are NOT already in tabs
+    // ----------------------------
+    if (!inTabs) {
+      router.replace("/(tabs)/home");
+    }
+
   }, [loading, user, segments]);
 
   return <>{children}</>;

@@ -51,11 +51,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const remoteUser = await getCurrentUser();
 
         if (!remoteUser?.$id) {
-        throw new Error("User not found");
+        return
       }
-      const dbUser = await getDbUser(remoteUser?.$id)
+    
+      const dbUser = await getDbUser(remoteUser.$id);
       setUser(dbUser);
-        await saveAuth({ user: remoteUser })
+        await saveAuth({ user: dbUser })
         console.log("Saved to offline")
       } catch (error: any) {
         console.log("Error finding user", error);
@@ -71,10 +72,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setLoading(false);
           return; // do NOT clear storage
         }else{
-          console.log("Session expired — clearing auth");
+          console.log("Session expired — clearing auth", error);
           await clearAuth();
           setLoading(false)
           setUser(null);
+          await clearAuth();
         }
       }
     })();
