@@ -3,6 +3,7 @@ import Logo from "@/components/Logo";
 import Post from "@/components/Post";
 import { useAuth } from "@/context/AuthContext";
 import { borderRadius, colors, fonts } from "@/theme/theme";
+import { getAvatarColorForUser } from "@/utils/avatarColors";
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -121,7 +122,7 @@ const Home = () => {
           userInitials="SS"
           timeAgo="2h Ago"
           caption="We are preparing for the next game and we decided before we travell to Abuja why don't we enjoy a bit of nature, that was when we saw John comming back ffrom church jnbhbyu nu"
-          avatarColor={colors.background}
+          avatarColor={getAvatarColorForUser("sokbat-sultan")}
           showFollowButton={true}
           images={[
             "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800",
@@ -135,7 +136,7 @@ const Home = () => {
           userInitials="JD"
           timeAgo="5h Ago"
           caption="Just finished an amazing workout session! Feeling pumped and ready to take on the world. Remember, consistency is key to success!"
-          avatarColor={colors.primary}
+          avatarColor={getAvatarColorForUser("john-doe")}
           images={[
             "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800"
           ]}
@@ -146,11 +147,24 @@ const Home = () => {
           userInitials="SW"
           timeAgo="1d Ago"
           caption="Beautiful sunset today at the beach. Nature never fails to amaze me with its incredible beauty and peaceful vibes."
-          avatarColor="#FF6B6B"
+          avatarColor={getAvatarColorForUser("sarah-williams")}
           showFollowButton={true}
           images={[
             "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",
             "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800"
+          ]}
+        />
+
+        <Post
+          userName="You"
+          userInitials="EA"
+          timeAgo="30m Ago"
+          caption="Just posted my first update on Tint! Loving this new platform and excited to connect with everyone here. 🚀"
+          avatarColor={getAvatarColorForUser("current-user")}
+          isUser={true}
+          onDelete={() => console.log("Delete post clicked")}
+          images={[
+            "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800"
           ]}
         />
       </ScrollView>

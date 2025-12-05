@@ -1,6 +1,7 @@
 import { borderRadius, colors, fonts } from "@/theme/theme";
 import React, { useRef, useState } from "react";
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
+import CommentModal from "./CommentModal";
 import TintIcon from "./Icon";
 
 interface PostProps {
@@ -11,6 +12,8 @@ interface PostProps {
     avatarColor?: string;
     showFollowButton?: boolean;
     images?: string[];
+    isUser?: boolean;
+    onDelete?: () => void;
 }
 
 const Post: React.FC<PostProps> = ({
@@ -21,12 +24,15 @@ const Post: React.FC<PostProps> = ({
     avatarColor = colors.background,
     showFollowButton = false,
     images = [],
+    isUser = false,
+    onDelete,
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isLiked, setIsLiked] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
+    const [showComments, setShowComments] = useState(false);
     const lastTap = useRef<number | null>(null);
     const maxLength = 120;
     const screenWidth = Dimensions.get('window').width;
@@ -89,7 +95,7 @@ const Post: React.FC<PostProps> = ({
                         <Text style={styles.timeAgo}>{timeAgo}</Text>
                     </View>
                 </View>
-                {!isFollowing && (
+                {!isFollowing && !isUser && (
                     <Pressable
                         style={styles.followButton}
                         onPress={() => setIsFollowing(true)}
@@ -154,7 +160,7 @@ const Post: React.FC<PostProps> = ({
                         <TintIcon name={isLiked ? "Heart-Filled" : "heart"} size={20} color={isLiked ? colors.text : colors.text} />
                         <Text style={styles.actionText}>Like</Text>
                     </Pressable>
-                    <Pressable style={styles.actionButton}>
+                    <Pressable style={styles.actionButton} onPress={() => setShowComments(true)}>
                         <TintIcon name="comment-dots" size={20} color={colors.text} />
                         <Text style={styles.actionText}>Comment</Text>
                     </Pressable>
@@ -187,6 +193,16 @@ const Post: React.FC<PostProps> = ({
                                     <Text style={styles.menuOptionText}>Save Post</Text>
                                 </Pressable>
 
+                                {isUser && (
+                                    <Pressable style={styles.menuOption} onPress={() => {
+                                        setShowMenu(false);
+                                        onDelete?.();
+                                    }}>
+                                        <TintIcon name="trash" size={20} color={colors.error} />
+                                        <Text style={[styles.menuOptionText, { color: colors.error }]}>Delete Post</Text>
+                                    </Pressable>
+                                )}
+
                                 {isFollowing && (
                                     <Pressable style={styles.menuOption} onPress={() => setShowMenu(false)}>
                                         <TintIcon name="user-forbidden-alt" size={20} color={colors.error} />
@@ -198,6 +214,14 @@ const Post: React.FC<PostProps> = ({
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+
+            {/* Comment Modal */}
+            <CommentModal
+                visible={showComments}
+                onClose={() => setShowComments(false)}
+                postUserName={userName}
+                currentUserId="current-user-id"
+            />
         </View>
     );
 };
@@ -301,7 +325,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     readMore: {
-        color: colors.primary,
+        color: colors.darkText,
         fontSize: 12,
         fontFamily: fonts.bold,
     },
