@@ -1,17 +1,25 @@
 import { borderRadius, colors, fonts } from "@/theme/theme";
+import { ResizeMode, Video } from "expo-av";
 import React, { useRef, useState } from "react";
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
 import CommentModal from "./CommentModal";
 import TintIcon from "./Icon";
+
+interface MediaItem {
+    uri: string;
+    type: string; // 'image' | 'video'
+}
 
 interface PostProps {
     userName: string;
     userInitials: string;
     timeAgo: string;
     caption: string;
+    avatar?: string | null;
     avatarColor?: string;
     showFollowButton?: boolean;
-    images?: string[];
+    images?: string[]; // Deprecated in favor of mediaItems
+    mediaItems?: MediaItem[];
     isUser?: boolean;
     onDelete?: () => void;
 }
@@ -21,9 +29,11 @@ const Post: React.FC<PostProps> = ({
     userInitials,
     timeAgo,
     caption,
+    avatar,
     avatarColor = colors.background,
     showFollowButton = false,
     images = [],
+    mediaItems = [],
     isUser = false,
     onDelete,
 }) => {
@@ -36,7 +46,13 @@ const Post: React.FC<PostProps> = ({
     const lastTap = useRef<number | null>(null);
     const maxLength = 120;
     const screenWidth = Dimensions.get('window').width;
-    const imageWidth = screenWidth * 0.9; // 90% of screen width to match post width
+    const imageWidth = screenWidth * 0.9;
+    console.log("Is user", isUser);
+    // Combine legacy images with mediaItems, treating legacy images as type 'image'
+    const displayMedia: MediaItem[] = [
+        ...mediaItems,
+        ...images.map(uri => ({ uri, type: 'image' }))
+    ];
 
     const renderCaption = () => {
         if (!isExpanded && caption.length > maxLength) {
@@ -87,8 +103,16 @@ const Post: React.FC<PostProps> = ({
         <View style={styles.post}>
             <View style={styles.postHeader}>
                 <View style={styles.postUser}>
-                    <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
-                        <Text style={styles.avatarText}>{userInitials}</Text>
+                    <View style={[styles.avatar, { backgroundColor: avatar ? 'transparent' : avatarColor, overflow: 'hidden' }]}>
+                        {avatar ? (
+                            <Image
+                                source={{ uri: avatar }}
+                                style={{ width: '100%', height: '100%' }}
+                                resizeMode="cover"
+                            />
+                        ) : (
+                            <Text style={styles.avatarText}>{userInitials}</Text>
+                        )}
                     </View>
                     <View>
                         <Text style={styles.userName}>{userName}</Text>
@@ -115,8 +139,8 @@ const Post: React.FC<PostProps> = ({
             </View>
 
 
-            {/* Image Carousel */}
-            {images.length > 0 && (
+            {/* Image/Video Carousel */}
+            {displayMedia.length > 0 && (
                 <View style={styles.imageContainer}>
                     <ScrollView
                         horizontal
@@ -125,21 +149,33 @@ const Post: React.FC<PostProps> = ({
                         onScroll={handleScroll}
                         scrollEventThrottle={16}
                     >
-                        {images.map((image, index) => (
+                        {displayMedia.map((item, index) => (
                             <TouchableWithoutFeedback key={index} onPress={handleDoubleTap}>
-                                <Image
-                                    source={{ uri: image }}
-                                    style={[styles.postImage, { width: imageWidth }]}
-                                    resizeMode="cover"
-                                />
+                                <View style={{ width: imageWidth, height: 300 }}>
+                                    {item.type === 'video' ? (
+                                        <Video
+                                            style={[styles.postImage, { width: imageWidth }]}
+                                            source={{ uri: item.uri }}
+                                            useNativeControls
+                                            resizeMode={ResizeMode.CONTAIN}
+                                            isLooping
+                                        />
+                                    ) : (
+                                        <Image
+                                            source={{ uri: item.uri }}
+                                            style={[styles.postImage, { width: imageWidth }]}
+                                            resizeMode="cover"
+                                        />
+                                    )}
+                                </View>
                             </TouchableWithoutFeedback>
                         ))}
                     </ScrollView>
 
-                    {/* Image Indicator Dots */}
-                    {images.length > 1 && (
+                    {/* Indicator Dots */}
+                    {displayMedia.length > 1 && (
                         <View style={styles.imageIndicator}>
-                            {images.map((_, index) => (
+                            {displayMedia.map((_, index) => (
                                 <View
                                     key={index}
                                     style={[

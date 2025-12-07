@@ -1,38 +1,40 @@
+import { pictureView } from "@/appwrite/apis/auth";
+import FeedItem from "@/components/FeedItem";
+import { HomeHeader } from "@/components/HomeHeader";
 import TintIcon from "@/components/Icon";
-import Logo from "@/components/Logo";
-import Post from "@/components/Post";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { TintHighlightCard } from "@/components/TintHighlightCard";
 import { useAuth } from "@/context/AuthContext";
+import { useGetPosts } from "@/hooks/usePosts";
 import { borderRadius, colors, fonts } from "@/theme/theme";
-import { getAvatarColorForUser } from "@/utils/avatarColors";
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Home = () => {
 
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const { data: posts, isLoading: isPostsLoading } = useGetPosts();
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      console.log("Logout successful");
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  }
+  const userInitials = user?.name?.split(" ").map((name) => name.charAt(0).toUpperCase()).join("") || "U";
+
+  React.useEffect(() => {
+    const fetchAvatar = async () => {
+      if (user?.avatar) {
+        const url = await pictureView(user.avatar);
+        // Ensure url is a string (it might be a URL object)
+        setAvatarUrl(url ? url.toString() : null);
+      }
+    };
+    fetchAvatar();
+  }, [user?.avatar]);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Logo variant="image" size="medium" />
-          <View style={styles.headerRight}>
-            <TintIcon name="bell" size={25} color={colors.text} />
-            <View style={styles.avatar}>
-              <Text style={[styles.text, { fontSize: 16 }]}>EA</Text>
-            </View>
-          </View>
-        </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 80 }} showsVerticalScrollIndicator={false}>
+
+        <HomeHeader initials={userInitials} avatar={avatarUrl} />
 
         {/* Tint Highlight */}
         <View style={styles.highlight}>
@@ -49,124 +51,23 @@ const Home = () => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.highlightCards}
           >
-            <View style={styles.highlightCard}>
-              <View style={styles.highlightCardIcon}>
-                <TintIcon name="newspaper" size={17} color={colors.text} />
-              </View>
-              <Text style={styles.highlightHeading}>Acute News</Text>
-              <Text style={styles.highlightText}>
-                {(() => {
-                  const fullText = "SUG has not accepted School's proposal on school fee";
-                  const maxLength = 43;
-                  if (fullText.length > maxLength) {
-                    return (
-                      <>
-                        {fullText.substring(0, maxLength)}...{' '}
-                        <Text style={styles.readMore}>Read more</Text>
-                      </>
-                    );
-                  }
-                  return fullText;
-                })()}
-              </Text>
-            </View>
-            <View style={styles.highlightCard}>
-              <View style={styles.highlightCardIcon}>
-                <TintIcon name="calendar-day" size={17} color={colors.text} />
-              </View>
-              <Text style={styles.highlightHeading}>Events</Text>
-              <Text style={styles.highlightText}>
-                {(() => {
-                  const fullText = "E-Natale cup on Saturday at 4pm";
-                  const maxLength = 43;
-                  if (fullText.length > maxLength) {
-                    return (
-                      <>
-                        {fullText.substring(0, maxLength)}...{' '}
-                        <Text style={styles.readMore}>Read more</Text>
-                      </>
-                    );
-                  }
-                  return fullText;
-                })()}
-              </Text>
-            </View>
-            <View style={styles.highlightCard}>
-              <View style={styles.highlightCardIcon}>
-                <TintIcon name="bell" size={17} color={colors.text} />
-              </View>
-              <Text style={styles.highlightHeading}>Notifications</Text>
-              <Text style={styles.highlightText}>
-                {(() => {
-                  const fullText = "Emmanuel John started following you";
-                  const maxLength = 43;
-                  if (fullText.length > maxLength) {
-                    return (
-                      <>
-                        {fullText.substring(0, maxLength)}...{' '}
-                        <Text style={styles.readMore}>Read more</Text>
-                      </>
-                    );
-                  }
-                  return fullText;
-                })()}
-              </Text>
-            </View>
+            <TintHighlightCard icon="newspaper" title="Acute News" text="SUG has not accepted School's proposal on school fee" />
+            <TintHighlightCard icon="calendar-day" title="Events" text="E-Natale cup on Saturday at 4pm" />
+            <TintHighlightCard icon="bell" title="Notifications" text="Emmanuel John started following you" />
           </ScrollView>
         </View>
 
 
         {/* Posts Feed */}
-        <Post
-          userName="Sokbat Sultan"
-          userInitials="SS"
-          timeAgo="2h Ago"
-          caption="We are preparing for the next game and we decided before we travell to Abuja why don't we enjoy a bit of nature, that was when we saw John comming back ffrom church jnbhbyu nu"
-          avatarColor={getAvatarColorForUser("sokbat-sultan")}
-          showFollowButton={true}
-          images={[
-            "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800",
-            "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800",
-            "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800"
-          ]}
-        />
-
-        <Post
-          userName="John Doe"
-          userInitials="JD"
-          timeAgo="5h Ago"
-          caption="Just finished an amazing workout session! Feeling pumped and ready to take on the world. Remember, consistency is key to success!"
-          avatarColor={getAvatarColorForUser("john-doe")}
-          images={[
-            "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800"
-          ]}
-        />
-
-        <Post
-          userName="Sarah Williams"
-          userInitials="SW"
-          timeAgo="1d Ago"
-          caption="Beautiful sunset today at the beach. Nature never fails to amaze me with its incredible beauty and peaceful vibes."
-          avatarColor={getAvatarColorForUser("sarah-williams")}
-          showFollowButton={true}
-          images={[
-            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",
-            "https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800"
-          ]}
-        />
-
-        <Post
-          userName="You"
-          userInitials="EA"
-          timeAgo="30m Ago"
-          caption="Just posted my first update on Tint! Loving this new platform and excited to connect with everyone here. 🚀"
-          avatarColor={getAvatarColorForUser("current-user")}
-          isUser={true}
-          onDelete={() => console.log("Delete post clicked")}
-          images={[
-            "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800"
-          ]}
-        />
+        {isPostsLoading ? (
+          <View style={{ padding: 20 }}>
+            <LoadingSpinner size="large" color={colors.primary} />
+          </View>
+        ) : (
+          posts?.map((post: any) => (
+            <FeedItem key={post.$id} post={post} user = {user} />
+          ))
+        )}
       </ScrollView>
     </SafeAreaView>
 

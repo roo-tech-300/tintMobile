@@ -9,6 +9,7 @@ export type AuthUser = {
   email?: string;
   name?: string;
   onBoarding?: boolean;
+  avatar? : string
   // add other fields you expect from Appwrite user object
 } | null;
 
@@ -51,11 +52,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const remoteUser = await getCurrentUser();
 
         if (!remoteUser?.$id) {
-        return
-      }
-    
-      const dbUser = await getDbUser(remoteUser.$id);
-      setUser(dbUser);
+          return
+        }
+
+        const dbUser = await getDbUser(remoteUser.$id);
+        setUser(dbUser);
         await saveAuth({ user: dbUser })
         console.log("Saved to offline")
       } catch (error: any) {
@@ -71,7 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("No internet — using local auth");
           setLoading(false);
           return; // do NOT clear storage
-        }else{
+        } else {
           console.log("Session expired — clearing auth", error);
           await clearAuth();
           setLoading(false)
@@ -153,8 +154,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setLoading(true);
     const u = await getCurrentUser();
     if (!u?.$id) {
-        throw new Error("User not found");
-      }
+      throw new Error("User not found");
+    }
     const dbUser = await getDbUser(u?.$id)
     setUser(dbUser);
     await saveAuth({ user: dbUser })

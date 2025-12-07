@@ -1,4 +1,4 @@
- export default {
+export default {
   "expo": {
     "name": "Tint-Mobile",
     "slug": "Tint-Mobile",
@@ -48,13 +48,14 @@
     },
     "extra": {
       "router": {},
-        "projectId": "7fa48483-b064-4e6d-82bb-016b843c0021",
-        "appBundleId": process.env.EXPO_PUBLIC_APP_BUNDLE_ID,
-        "appwriteEndpoint": process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
-        "appwriteProjectId": process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID,
-        "databaseId": process.env.EXPO_PUBLIC_DATABASE_ID,
-        "usersCollectionId": process.env.EXPO_PUBLIC_USERS_COLLECTION_ID,
-        "mediaBucketId": process.env.EXPO_PUBLIC_MEDIA_BUCKET_ID
+      "projectId": "7fa48483-b064-4e6d-82bb-016b843c0021",
+      "appBundleId": process.env.EXPO_PUBLIC_APP_BUNDLE_ID,
+      "appwriteEndpoint": process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
+      "appwriteProjectId": process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID,
+      "databaseId": process.env.EXPO_PUBLIC_DATABASE_ID,
+      "usersCollectionId": process.env.EXPO_PUBLIC_USERS_COLLECTION_ID,
+      mediaBucketId: process.env.EXPO_PUBLIC_MEDIA_BUCKET_ID,
+      postsCollectionId: process.env.EXPO_PUBLIC_POSTS_COLLECTION_ID
     },
     "owner": "eluzia"
   }

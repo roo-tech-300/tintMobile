@@ -1,7 +1,7 @@
 // src/lib/appwrite/appwrite.ts
-import Constants from 'expo-constants'
-import 'react-native-url-polyfill/auto';   // required polyfill
-import { Client, Account, Databases, Storage, TablesDB } from 'react-native-appwrite';
+import Constants from 'expo-constants';
+import { Account, Client, Storage, TablesDB } from 'react-native-appwrite';
+import 'react-native-url-polyfill/auto'; // required polyfill
 
 
 const extra = Constants.expoConfig?.extra as {

@@ -137,8 +137,8 @@ export async function uploadAvatar(fileUri: string): Promise<string> {
     }
 }
 
-export async function sendPasswordReset(email:string){
-    try{
+export async function sendPasswordReset(email: string) {
+    try {
         await account.createRecovery(
             email,
             'https://tintcomplete.com'
@@ -148,11 +148,36 @@ export async function sendPasswordReset(email:string){
             success: true,
             message: 'Password reset link sent'
         }
-    }catch(error){
+    } catch (error) {
         console.error("Error sending password reset", error)
         return {
             success: false,
             message: 'Error sending password reset'
         }
+    }
+}
+
+export async function getMediaResource(fileId: string) {
+    try {
+        const fileMeta = await storage.getFile(mediaBucketId, fileId);
+        const url = await storage.getFileViewURL(mediaBucketId, fileId);
+
+        return {
+            uri: url.toString(),
+            type: fileMeta.mimeType.startsWith('video/') ? 'video' : 'image',
+        };
+    } catch (error) {
+        console.error("Error getting media resource", error);
+        return null;
+    }
+}
+
+export async function pictureView(storageId: string) {
+    try {
+        const file = await storage.getFileViewURL(mediaBucketId, storageId);
+        return file;
+    } catch (error) {
+        console.error("Error getting file", error)
+        return null;
     }
 }

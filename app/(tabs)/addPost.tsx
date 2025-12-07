@@ -1,43 +1,73 @@
 import TintIcon from "@/components/Icon";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import TintAlert from "@/components/TintAlert";
+import { useAuth } from "@/context/AuthContext";
+import { useCreatePost } from "@/hooks/usePosts";
 import { borderRadius, colors, fonts } from "@/theme/theme";
 import * as ImagePicker from 'expo-image-picker';
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const AddPost = () => {
+  const { user } = useAuth();
+  const { mutate: createPost, isPending } = useCreatePost();
+  const router = useRouter();
+
   const [caption, setCaption] = useState("");
   const [selectedMedia, setSelectedMedia] = useState<{ uri: string; type: 'image' | 'video' }[]>([]);
+  const [isPickingMedia, setIsPickingMedia] = useState(false);
+  const [alertState, setAlertState] = useState<{ visible: boolean; message: string; type: "error" | "success" | "info" }>({
+    visible: false,
+    message: "",
+    type: "error",
+  });
+
+  const showAlert = (message: string, type: "error" | "success" | "info" = "error") => {
+    setAlertState({ visible: true, message, type });
+  };
+
+  const hideAlert = () => {
+    setAlertState(prev => ({ ...prev, visible: false }));
+  };
 
   const pickMedia = async () => {
     // Request permission
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (status !== 'granted') {
-      alert('Sorry, we need camera roll permissions to make this work!');
+      showAlert('Sorry, we need camera roll permissions to make this work!', 'error');
       return;
     }
 
     // Check if limit reached
     if (selectedMedia.length >= 5) {
-      alert('You can only select up to 5 media items');
+      showAlert('You can only select up to 5 media items', 'info');
       return;
     }
 
     // Launch picker
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All, // Allow images and videos
-      allowsMultipleSelection: true,
-      quality: 0.8,
-      selectionLimit: 5 - selectedMedia.length, // Limit based on remaining slots
-    });
+    try {
+      setIsPickingMedia(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All, // Allow images and videos
+        allowsMultipleSelection: true,
+        quality: 0.8,
+        selectionLimit: 5 - selectedMedia.length, // Limit based on remaining slots
+      });
 
-    if (!result.canceled && result.assets) {
-      const newMedia = result.assets.map(asset => ({
-        uri: asset.uri,
-        type: asset.type as 'image' | 'video'
-      }));
-      setSelectedMedia([...selectedMedia, ...newMedia]);
+      if (!result.canceled && result.assets) {
+        const newMedia = result.assets.map(asset => ({
+          uri: asset.uri,
+          type: asset.type as 'image' | 'video'
+        }));
+        setSelectedMedia([...selectedMedia, ...newMedia]);
+      }
+    } catch (error) {
+      console.error("Error picking media:", error);
+    } finally {
+      setIsPickingMedia(false);
     }
   };
 
@@ -47,22 +77,39 @@ const AddPost = () => {
 
   const handlePost = () => {
     if (!caption.trim() && selectedMedia.length === 0) {
-      alert('Please add a caption or select at least one media item');
+      showAlert('Please add a caption or select at least one media item', 'error');
       return;
     }
 
-    // Handle post creation here
-    console.log('Caption:', caption);
-    console.log('Media:', selectedMedia);
+    if (!user?.$id) {
+      showAlert('You must be logged in to create a post', 'error');
+      return;
+    }
 
-    // Reset form
-    setCaption("");
-    setSelectedMedia([]);
-    alert('Post created successfully!');
+    createPost({
+      user: user.$id,
+      caption: caption,
+      media: selectedMedia.map(m => m.uri)
+    }, {
+      onSuccess: () => {
+        setCaption("");
+        setSelectedMedia([]);
+        router.push("/(tabs)/home");
+      },
+      onError: (error) => {
+        showAlert('Error creating post: ' + error.message, 'error');
+      }
+    })
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <TintAlert
+        visible={alertState.visible}
+        message={alertState.message}
+        type={alertState.type}
+        onClose={hideAlert}
+      />
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -91,14 +138,21 @@ const AddPost = () => {
           <Text style={styles.sectionTitle}>Add Media</Text>
 
           {/* Add Media Button */}
-          <Pressable style={styles.addImageButton} onPress={pickMedia}>
-            <TintIcon name="picture" size={32} color={colors.primary} />
-            <Text style={styles.addImageText}>Select Photos or Videos</Text>
-            <Text style={styles.addImageSubtext}>
-              {selectedMedia.length > 0
-                ? `${selectedMedia.length}/5 selected`
-                : 'Max 5 photos or videos'}
-            </Text>
+          {/* Add Media Button */}
+          <Pressable style={styles.addImageButton} onPress={pickMedia} disabled={isPickingMedia}>
+            {isPickingMedia ? (
+              <LoadingSpinner color={colors.primary} />
+            ) : (
+              <>
+                <TintIcon name="picture" size={32} color={colors.primary} />
+                <Text style={styles.addImageText}>Select Photos or Videos</Text>
+                <Text style={styles.addImageSubtext}>
+                  {selectedMedia.length > 0
+                    ? `${selectedMedia.length}/5 selected`
+                    : 'Max 5 photos or videos'}
+                </Text>
+              </>
+            )}
           </Pressable>
 
           {/* Selected Media Grid */}
@@ -137,10 +191,13 @@ const AddPost = () => {
             (!caption.trim() && selectedMedia.length === 0) && styles.postButtonDisabled
           ]}
           onPress={handlePost}
-          disabled={!caption.trim() && selectedMedia.length === 0}
+          disabled={(!caption.trim() && selectedMedia.length === 0) || isPending}
         >
-          <TintIcon name="paper-plane" size={20} color={colors.text} />
-          <Text style={styles.postButtonText}>Post</Text>
+          {
+            isPending ?
+              <Text style={styles.postButtonText}>{isPending ? <LoadingSpinner color={colors.text} /> : "Post"}</Text>
+              : <TintIcon name="paper-plane" size={20} color={colors.text} />
+          }
         </Pressable>
       </ScrollView>
     </SafeAreaView>
