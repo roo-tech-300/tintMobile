@@ -97,7 +97,7 @@ export async function getPosts() {
     }
 }
 
-export async function editPost ( postId: string, data: any){
+export async function editPost(postId: string, data: any) {
     try {
         const editedPost = await databases.updateRow(
             databaseId,
@@ -108,6 +108,47 @@ export async function editPost ( postId: string, data: any){
         return editedPost;
     } catch (error) {
         console.error("Error editing post:", error);
+        throw error;
+    }
+}
+
+export async function getPost(postId: string) {
+    try {
+        const post = await databases.getRow(
+            databaseId,
+            postsCollectionId,
+            postId
+        );
+        return post;
+    } catch (error) {
+        console.error("Error getting post:", error);
+        throw error;
+    }
+}
+
+export async function deletePost(postId: string) {
+    try {
+
+        const post = await getPost(postId);
+        if (post.media && Array.isArray(post.media)) {
+            await Promise.all(
+                post.media.map(async (mediaId: string) => {
+                    try {
+                        await storage.deleteFile(mediaBucketId, mediaId);
+                    } catch (e) {
+                        console.error("Error deleting media file:", mediaId, e);
+                    }
+                })
+            );
+        }
+        const deletedPost = await databases.deleteRow(
+            databaseId,
+            postsCollectionId,
+            postId
+        );
+        return deletedPost;
+    } catch (error) {
+        console.error("Error deleting post:", error);
         throw error;
     }
 }

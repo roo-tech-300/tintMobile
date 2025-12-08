@@ -1,8 +1,8 @@
 import { getDbUser, getMediaResource, pictureView } from '@/appwrite/apis/auth';
 import { useAuth } from '@/context/AuthContext';
-import { useEditedPost } from '@/hooks/usePosts';
+import { useDeletePost, useEditedPost } from '@/hooks/usePosts';
 import { useToggleFollow } from '@/hooks/useUser';
-import { getAvatarColorForUser } from '@/utils/avatarColors'; // You might need to export this if not already
+import { getAvatarColorForUser } from '@/utils/avatarColors';
 import { timeAgo } from '@/utils/dateUtils';
 import { getInitials } from '@/utils/stringUtils';
 import React, { useEffect, useState } from 'react';
@@ -20,6 +20,8 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
     const { user } = useAuth();
     const { mutate: editPost } = useEditedPost();
     const { mutate: toggleFollow } = useToggleFollow();
+    const { mutate: deletePostMutation } = useDeletePost();
+
     const [mediaItems, setMediaItems] = useState<{ uri: string; type: string }[]>([]);
     const [avatarUrl, setAvatarUrl] = useState<URL | null>(null);
     const [userInitials, setUserInitials] = useState("");
@@ -92,10 +94,12 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
         });
     };
 
+    const handleDelete = () => {
+        deletePostMutation({ postId: post.$id });
+    };
+
     const handleFollow = () => {
-        // console.log('Handle Follow Called. User:', user?.$id, 'Author:', author?.$id);
         if (!user || !author) {
-            // console.log("Follow aborted: Missing user or author");
             return;
         }
 
@@ -116,7 +120,6 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
             followers: newFollowers
         });
 
-        // console.log('We dey following');
         toggleFollow(
             { currentUserId: user.$id, targetUserId: author.$id },
             {
@@ -155,6 +158,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
             onLike={handleLike}
             isFollowing={isFollowing || false}
             onFollow={handleFollow}
+            onDelete={handleDelete}
         />
     );
 };

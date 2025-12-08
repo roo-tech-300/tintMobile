@@ -1,4 +1,4 @@
-import { createPost, editPost, getPosts } from "@/appwrite/apis/posts";
+import { createPost, deletePost, editPost, getPosts } from "@/appwrite/apis/posts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface CreatePostParams {
@@ -73,4 +73,23 @@ export const useEditedPost = () => {
             queryClient.invalidateQueries({ queryKey: ["posts"] });
         },
     });
-}
+};
+
+export const useDeletePost = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ postId }: { postId: string }) => {
+            console.log("Deleting Post", postId)
+            return await deletePost(postId);
+        },
+        onSuccess: () => {
+            // Invalidate posts query to refetch the list
+            queryClient.invalidateQueries({ queryKey: ["posts"] });
+        },
+        onError: (error) => {
+            console.error("Error deleting post in mutation:", error);
+        }
+    });
+};
+
