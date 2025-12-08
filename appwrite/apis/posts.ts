@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { ID } from "react-native-appwrite";
 import { databases, storage } from "../appwrite";
+import { getDbUser } from './auth';
 
 const extra = Constants.expoConfig?.extra as {
     databaseId: string;
@@ -80,9 +81,33 @@ export async function createPost(
 export async function getPosts() {
     try {
         const posts = await databases.listRows(databaseId, postsCollectionId);
-        return posts.rows;
+
+        const postsWithUsers = await Promise.all(posts.rows.map(async (post) => {
+            const user = await getDbUser(post.user);
+            return {
+                ...post,
+                user: user
+            };
+        }));
+
+        return postsWithUsers;
     } catch (error) {
         console.error("Error getting posts:", error);
+        throw error;
+    }
+}
+
+export async function editPost ( postId: string, data: any){
+    try {
+        const editedPost = await databases.updateRow(
+            databaseId,
+            postsCollectionId,
+            postId,
+            data
+        );
+        return editedPost;
+    } catch (error) {
+        console.error("Error editing post:", error);
         throw error;
     }
 }

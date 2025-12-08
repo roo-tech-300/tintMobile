@@ -1,5 +1,7 @@
 import { getDbUser, getMediaResource, pictureView } from '@/appwrite/apis/auth';
 import { useAuth } from '@/context/AuthContext';
+import { useEditedPost } from '@/hooks/usePosts';
+import { useToggleFollow } from '@/hooks/useUser';
 import { getAvatarColorForUser } from '@/utils/avatarColors'; // You might need to export this if not already
 import { timeAgo } from '@/utils/dateUtils';
 import { getInitials } from '@/utils/stringUtils';
@@ -9,16 +11,20 @@ import LoadingSpinner from './LoadingSpinner';
 import Post from './Post';
 
 interface FeedItemProps {
-    post: any;  
-    user: any;
+    post: any;
+    user?: any;
+    isVisible?: boolean;
 }
 
-const FeedItem: React.FC<FeedItemProps> = ({ post }) => {
+const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
     const { user } = useAuth();
+    const { mutate: editPost } = useEditedPost();
+    const { mutate: toggleFollow } = useToggleFollow();
     const [mediaItems, setMediaItems] = useState<{ uri: string; type: string }[]>([]);
     const [avatarUrl, setAvatarUrl] = useState<URL | null>(null);
     const [userInitials, setUserInitials] = useState("");
     const [userName, setUserName] = useState("Tint User");
+    const [author, setAuthor] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -36,36 +42,27 @@ const FeedItem: React.FC<FeedItemProps> = ({ post }) => {
                 }
 
                 // Resolve User Data
-                let name = "Unknown User";
-                let userId = typeof post.user === 'object' ? post.user.$id : post.user;
+                let fetchedUser = null;
 
-
-                try {
-                    // If post.user is just an ID (string), fetch the full user object
-                    if (typeof post.user === 'string') {
-                        const dbUser = await getDbUser(post.user);
-                        if (dbUser) {
-                            name = dbUser.name || "Tint User";
-                            if (dbUser.avatar) {
-                                const url = await pictureView(dbUser.avatar);
-                                console.log("Avatar URL:", url);
-                                setAvatarUrl(url);
-                            }
-                        }
-                    } else if (typeof post.user === 'object') {
-                        // If it's already an object (relationship expanded), use it directly
-                        name = post.user.name || "Appwrite User";
-                        if (post.user.avatar) {
-                            const url = await pictureView(post.user.avatar);
-                            setAvatarUrl(url);
-                        }
-                    }
-                } catch (userError) {
-                    console.error("Error fetching user details for post:", userError);
+                if (post.user && typeof post.user === 'object') {
+                    fetchedUser = post.user;
+                } else if (typeof post.user === 'string') {
+                    fetchedUser = await getDbUser(post.user);
                 }
 
-                setUserInitials(getInitials(name));
-                setUserName(name);
+                if (fetchedUser) {
+                    setAuthor(fetchedUser);
+                    setUserName(fetchedUser.name || "Tint User");
+                    setUserInitials(getInitials(fetchedUser.name || "Tint User"));
+                    if (fetchedUser.avatar) {
+                        const url = await pictureView(fetchedUser.avatar);
+                        setAvatarUrl(url);
+                    }
+                } else {
+                    // Fallback
+                    setUserName("Unknown User");
+                    setUserInitials("??");
+                }
 
             } catch (e) {
                 console.error("Error loading feed item:", e);
@@ -76,10 +73,71 @@ const FeedItem: React.FC<FeedItemProps> = ({ post }) => {
         loadData();
     }, [post]);
 
+    const handleLike = () => {
+        if (!user) return;
+
+        const currentLikes = post.likes || [];
+        const isLiked = currentLikes.includes(user.$id);
+
+        let newLikes;
+        if (isLiked) {
+            newLikes = currentLikes.filter((id: string) => id !== user.$id);
+        } else {
+            newLikes = [...currentLikes, user.$id];
+        }
+
+        editPost({
+            postId: post.$id,
+            data: { likes: newLikes }
+        });
+    };
+
+    const handleFollow = () => {
+        // console.log('Handle Follow Called. User:', user?.$id, 'Author:', author?.$id);
+        if (!user || !author) {
+            // console.log("Follow aborted: Missing user or author");
+            return;
+        }
+
+        // Optimistic Update
+        const currentFollowers = author.followers || [];
+        const isFollowing = currentFollowers.includes(user.$id);
+
+        let newFollowers;
+        if (isFollowing) {
+            newFollowers = currentFollowers.filter((id: string) => id !== user.$id);
+        } else {
+            newFollowers = [...currentFollowers, user.$id];
+        }
+
+        // Update local state immediately
+        setAuthor({
+            ...author,
+            followers: newFollowers
+        });
+
+        // console.log('We dey following');
+        toggleFollow(
+            { currentUserId: user.$id, targetUserId: author.$id },
+            {
+                onError: (error) => {
+                    console.error("Follow failed, reverting", error);
+                    // Revert
+                    setAuthor({
+                        ...author,
+                        followers: currentFollowers
+                    });
+                }
+            }
+        );
+    };
+
     if (loading) {
-        // Optional: Render nothing or a skeleton. Post component might need data.
         return <View style={{ padding: 20 }}><LoadingSpinner /></View>;
     }
+
+    const postUserId = author ? author.$id : (typeof post.user === 'string' ? post.user : post.user?.$id);
+    const isFollowing = author?.followers?.includes(user?.$id);
 
     return (
         <Post
@@ -87,10 +145,16 @@ const FeedItem: React.FC<FeedItemProps> = ({ post }) => {
             userInitials={userInitials}
             timeAgo={timeAgo(post.createdAt || post.$createdAt)}
             caption={post.caption}
-            avatarColor={getAvatarColorForUser(typeof post.user === 'object' ? post.user.$id : post.user || "unknown")}
+            avatarColor={getAvatarColorForUser(postUserId || "unknown")}
             mediaItems={mediaItems}
             avatar={avatarUrl ? avatarUrl.toString() : null}
-            isUser={user?.$id === post.user}
+            isUser={user?.$id === postUserId}
+            isVisible={isVisible}
+            likes={post.likes || []}
+            currentUserId={user?.$id}
+            onLike={handleLike}
+            isFollowing={isFollowing || false}
+            onFollow={handleFollow}
         />
     );
 };

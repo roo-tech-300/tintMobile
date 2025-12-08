@@ -36,7 +36,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     // 3. User onboarded → allow navigation
     // Only redirect to /home if they are NOT already in tabs
     // ----------------------------
-    if (!inTabs) {
+    // ----------------------------
+    // 3. User onboarded → allow navigation
+    // Only redirect to /home if they are inside the 'auth' group (login/signup)
+    // ----------------------------
+    if (inAuthGroup) {
       router.replace("/(tabs)/home");
     }
 

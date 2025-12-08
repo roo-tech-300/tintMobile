@@ -9,7 +9,9 @@ export type AuthUser = {
   email?: string;
   name?: string;
   onBoarding?: boolean;
-  avatar? : string
+  avatar?: string;
+  followers?: string[];
+  following?: string[];
   // add other fields you expect from Appwrite user object
 } | null;
 
@@ -28,6 +30,8 @@ export type DbUser = {
   name?: string;
   email?: string;
   avatar?: string;
+  followers?: string[];
+  following?: string[];
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

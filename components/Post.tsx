@@ -21,7 +21,13 @@ interface PostProps {
     images?: string[]; // Deprecated in favor of mediaItems
     mediaItems?: MediaItem[];
     isUser?: boolean;
+    isVisible?: boolean;
+    likes?: string[];
+    currentUserId?: string;
+    onLike?: () => void;
     onDelete?: () => void;
+    isFollowing?: boolean;
+    onFollow?: () => void;
 }
 
 const Post: React.FC<PostProps> = ({
@@ -35,19 +41,41 @@ const Post: React.FC<PostProps> = ({
     images = [],
     mediaItems = [],
     isUser = false,
+    isVisible = true,
+    likes = [],
+    currentUserId,
+    onLike,
     onDelete,
+    isFollowing = false,
+    onFollow,
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [isFollowing, setIsFollowing] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [isLiked, setIsLiked] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [showComments, setShowComments] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(true);
+
+    const isLiked = likes.includes(currentUserId || "");
+
+    // Tap handling
     const lastTap = useRef<number | null>(null);
+    const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const maxLength = 120;
     const screenWidth = Dimensions.get('window').width;
     const imageWidth = screenWidth * 0.9;
-    console.log("Is user", isUser);
+
+    // Reset playing state when index changes (auto-play next slide)
+    // or when visibility changes.
+    React.useEffect(() => {
+        // console.log(`Post ${userName}: isVisible=${isVisible} index=${currentImageIndex}`);
+        if (isVisible) {
+            setIsPlaying(true);
+        } else {
+            setIsPlaying(false);
+        }
+    }, [currentImageIndex, isVisible]);
+
     // Combine legacy images with mediaItems, treating legacy images as type 'image'
     const displayMedia: MediaItem[] = [
         ...mediaItems,
@@ -84,18 +112,37 @@ const Post: React.FC<PostProps> = ({
     const handleScroll = (event: any) => {
         const scrollPosition = event.nativeEvent.contentOffset.x;
         const index = Math.round(scrollPosition / imageWidth);
-        setCurrentImageIndex(index);
+        if (index !== currentImageIndex) {
+            setCurrentImageIndex(index);
+        }
     };
 
-    const handleDoubleTap = () => {
+    const handlePress = () => {
         const now = Date.now();
         const DOUBLE_TAP_DELAY = 300;
 
         if (lastTap.current && (now - lastTap.current) < DOUBLE_TAP_DELAY) {
-            setIsLiked(true);
+            // Double tap detected
+            if (singleTapTimeout.current) {
+                clearTimeout(singleTapTimeout.current);
+                singleTapTimeout.current = null;
+            }
+            if (!isLiked) {
+                onLike?.();
+            }
             lastTap.current = null;
         } else {
+            // Single tap detected
             lastTap.current = now;
+            singleTapTimeout.current = setTimeout(() => {
+                // Execute single tap action (toggle play/pause for video)
+                // Only relevant if current media is video
+                const currentMedia = displayMedia[currentImageIndex];
+                if (currentMedia && currentMedia.type === 'video') {
+                    setIsPlaying(prev => !prev);
+                }
+                lastTap.current = null;
+            }, DOUBLE_TAP_DELAY);
         }
     };
 
@@ -122,7 +169,7 @@ const Post: React.FC<PostProps> = ({
                 {!isFollowing && !isUser && (
                     <Pressable
                         style={styles.followButton}
-                        onPress={() => setIsFollowing(true)}
+                        onPress={onFollow}
                     >
                         <Text style={styles.followButtonText}>
                             Follow
@@ -150,15 +197,15 @@ const Post: React.FC<PostProps> = ({
                         scrollEventThrottle={16}
                     >
                         {displayMedia.map((item, index) => (
-                            <TouchableWithoutFeedback key={index} onPress={handleDoubleTap}>
+                            <TouchableWithoutFeedback key={index} onPress={handlePress}>
                                 <View style={{ width: imageWidth, height: 300 }}>
                                     {item.type === 'video' ? (
                                         <Video
                                             style={[styles.postImage, { width: imageWidth }]}
                                             source={{ uri: item.uri }}
-                                            useNativeControls
                                             resizeMode={ResizeMode.CONTAIN}
                                             isLooping
+                                            shouldPlay={isVisible && index === currentImageIndex && isPlaying}
                                         />
                                     ) : (
                                         <Image
@@ -192,8 +239,8 @@ const Post: React.FC<PostProps> = ({
             {/* Action Buttons */}
             <View style={styles.actionsContainer}>
                 <View style={styles.leftActions}>
-                    <Pressable style={styles.actionButton} onPress={() => setIsLiked(!isLiked)}>
-                        <TintIcon name={isLiked ? "Heart-Filled" : "heart"} size={20} color={isLiked ? colors.text : colors.text} />
+                    <Pressable style={styles.actionButton} onPress={onLike}>
+                        <TintIcon name={isLiked ? "Heart-Filled" : "heart"} size={20} color={isLiked ? colors.primary : colors.text} />
                         <Text style={styles.actionText}>Like</Text>
                     </Pressable>
                     <Pressable style={styles.actionButton} onPress={() => setShowComments(true)}>
@@ -240,7 +287,10 @@ const Post: React.FC<PostProps> = ({
                                 )}
 
                                 {isFollowing && (
-                                    <Pressable style={styles.menuOption} onPress={() => setShowMenu(false)}>
+                                    <Pressable style={styles.menuOption} onPress={() => {
+                                        setShowMenu(false);
+                                        onFollow?.();
+                                    }}>
                                         <TintIcon name="user-forbidden-alt" size={20} color={colors.error} />
                                         <Text style={[styles.menuOptionText, { color: colors.error }]}>Unfollow {userName}</Text>
                                     </Pressable>

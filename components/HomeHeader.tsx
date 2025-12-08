@@ -1,15 +1,18 @@
 import { borderRadius, colors } from "@/theme/theme"
-import { Image, StyleSheet, Text, View } from "react-native"
+import { useRouter } from "expo-router"
+import { Image, Pressable, StyleSheet, Text, View } from "react-native"
 import TintIcon from "./Icon"
 import Logo from "./Logo"
 
 export const HomeHeader = ({ initials, avatar }: { initials: string, avatar?: string | null }) => {
+
+  const router = useRouter()
   return (
     <View style={styles.header}>
       <Logo variant="image" size="medium" />
       <View style={styles.headerRight}>
         <TintIcon name="bell" size={25} color={colors.text} />
-        <View style={styles.avatar}>
+        <Pressable style={styles.avatar} onPress={() => { router.push("/user/profile") }}>
           {avatar ? (
             <Image
               source={{ uri: avatar }}
@@ -18,7 +21,7 @@ export const HomeHeader = ({ initials, avatar }: { initials: string, avatar?: st
           ) : (
             <Text style={[styles.text, { fontSize: 16 }]}>{initials}</Text>
           )}
-        </View>
+        </Pressable>
       </View>
     </View>
   )
