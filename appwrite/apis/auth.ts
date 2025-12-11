@@ -161,8 +161,9 @@ export async function getMediaResource(fileId: string) {
     try {
         const fileMeta = await storage.getFile(mediaBucketId, fileId);
         const url = await storage.getFileViewURL(mediaBucketId, fileId);
-
+        console.log("Media resources", url.toString())
         return {
+            id: fileId,
             uri: url.toString(),
             type: fileMeta.mimeType.startsWith('video/') ? 'video' : 'image',
         };

@@ -54,8 +54,9 @@ export default {
       "appwriteProjectId": process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID,
       "databaseId": process.env.EXPO_PUBLIC_DATABASE_ID,
       "usersCollectionId": process.env.EXPO_PUBLIC_USERS_COLLECTION_ID,
-      mediaBucketId: process.env.EXPO_PUBLIC_MEDIA_BUCKET_ID,
-      postsCollectionId: process.env.EXPO_PUBLIC_POSTS_COLLECTION_ID
+      'mediaBucketId': process.env.EXPO_PUBLIC_MEDIA_BUCKET_ID,
+      "postsCollectionId": process.env.EXPO_PUBLIC_POSTS_COLLECTION_ID,
+      "commentsCollectionId": process.env.EXPO_PUBLIC_COMMENTS_COLLECTION_ID
     },
     "owner": "eluzia"
   }

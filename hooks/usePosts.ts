@@ -1,4 +1,4 @@
-import { createPost, deletePost, editPost, getPosts } from "@/appwrite/apis/posts";
+import { createPost, createPostComment, deleteComment, deletePost, editPost, getPostComment, getPosts, likeComment } from "@/appwrite/apis/posts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface CreatePostParams {
@@ -80,7 +80,6 @@ export const useDeletePost = () => {
 
     return useMutation({
         mutationFn: async ({ postId }: { postId: string }) => {
-            console.log("Deleting Post", postId)
             return await deletePost(postId);
         },
         onSuccess: () => {
@@ -93,3 +92,59 @@ export const useDeletePost = () => {
     });
 };
 
+export const useCreatePostComment = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ postId, userId, content }: { postId: string, userId: string, content: string }) => {
+            return await createPostComment(postId, userId, content);
+        },
+        onSuccess: () => {
+            // Invalidate posts query to refetch the list
+            queryClient.invalidateQueries({ queryKey: ["comments"] });
+        },
+        onError: (error) => {
+            console.error("Error creating post comment in mutation:", error);
+        }
+    });
+};
+
+export const useGetPostComments = (postId: string) => {
+    return useQuery({
+        queryKey: ["comments", postId],
+        queryFn: async () => await getPostComment(postId),
+        enabled: !!postId, // Only run when postId exists
+    });
+};
+
+export const useLikeComment = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({commentId, userId}: {commentId: string, userId: string}) => {
+            return await likeComment(commentId, userId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["comments"] });
+        },
+        onError: (error) => {
+            console.error("Error liking comment in mutation:", error);
+        }
+    });
+};
+
+export const useDeleteComment = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({commentId}: {commentId: string}) => {
+            return await deleteComment(commentId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["comments"] });
+        },
+        onError: (error) => {
+            console.error("Error deleting comment in mutation:", error);
+        }
+    });
+};

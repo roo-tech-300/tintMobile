@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import LoadingSpinner from './LoadingSpinner';
 import Post from './Post';
+import { useRouter } from 'expo-router';
 
 interface FeedItemProps {
     post: any;
@@ -17,6 +18,7 @@ interface FeedItemProps {
 }
 
 const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
+    const router = useRouter();
     const { user } = useAuth();
     const { mutate: editPost } = useEditedPost();
     const { mutate: toggleFollow } = useToggleFollow();
@@ -98,6 +100,17 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
         deletePostMutation({ postId: post.$id });
     };
 
+    const handleEdit = () => {
+        router.push({
+            pathname: '/post/editPost',
+            params: {
+                id: post.$id,
+                caption: post.caption,
+                media: JSON.stringify(post.media ?? [])
+            }
+        })
+    };
+
     const handleFollow = () => {
         if (!user || !author) {
             return;
@@ -144,7 +157,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
 
     return (
         <Post
-            userName={userName}
+            userName={userName} 
             userInitials={userInitials}
             timeAgo={timeAgo(post.createdAt || post.$createdAt)}
             caption={post.caption}
@@ -159,6 +172,8 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
             isFollowing={isFollowing || false}
             onFollow={handleFollow}
             onDelete={handleDelete}
+            onEdit={handleEdit}
+            postId={post.$id}
         />
     );
 };

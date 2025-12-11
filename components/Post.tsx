@@ -2,8 +2,9 @@ import { borderRadius, colors, fonts } from "@/theme/theme";
 import { ResizeMode, Video } from "expo-av";
 import React, { useRef, useState } from "react";
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
-import CommentModal from "./CommentModal";
 import TintIcon from "./Icon";
+import ConfirmModal from "./ConfirmModal";
+import { CommentModal } from "./CommentModal";
 
 interface MediaItem {
     uri: string;
@@ -28,6 +29,8 @@ interface PostProps {
     onDelete?: () => void;
     isFollowing?: boolean;
     onFollow?: () => void;
+    onEdit?: () => void;
+    postId?: string;
 }
 
 const Post: React.FC<PostProps> = ({
@@ -48,12 +51,16 @@ const Post: React.FC<PostProps> = ({
     onDelete,
     isFollowing = false,
     onFollow,
+    onEdit,
+    postId,
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showMenu, setShowMenu] = useState(false);
     const [showComments, setShowComments] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
+    const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
 
     const isLiked = likes.includes(currentUserId || "");
 
@@ -265,7 +272,13 @@ const Post: React.FC<PostProps> = ({
                         <TouchableWithoutFeedback>
                             <View style={styles.menuModal}>
                                 <Text style={styles.menuTitle}>Post Options</Text>
-
+                                <Pressable style={styles.menuOption} onPress={() => {
+                                    setShowMenu(false);
+                                    onEdit?.();
+                                }}>
+                                    <TintIcon name="edit-1" size={20} color={colors.text} />
+                                    <Text style={styles.menuOptionText}>Edit</Text>
+                                </Pressable>
                                 <Pressable style={styles.menuOption} onPress={() => setShowMenu(false)}>
                                     <TintIcon name="share" size={20} color={colors.text} />
                                     <Text style={styles.menuOptionText}>Share</Text>
@@ -307,6 +320,16 @@ const Post: React.FC<PostProps> = ({
                 onClose={() => setShowComments(false)}
                 postUserName={userName}
                 currentUserId="current-user-id"
+                postId={postId!}
+            />
+            <ConfirmModal
+                visible={showConfirmDelete}
+                message="Are you sure you want to delete this post?"
+                onCancel={() => setShowConfirmDelete(false)}
+                onConfirm={() => {
+                    setShowConfirmDelete(false);
+                    onDelete?.();
+                }}
             />
         </View>
     );

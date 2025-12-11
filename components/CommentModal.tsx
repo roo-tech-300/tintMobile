@@ -1,116 +1,151 @@
 import { borderRadius, colors, fonts } from "@/theme/theme";
-import React, { useState } from "react";
-import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
 import TintIcon from "./Icon";
-
-interface Comment {
-    id: string;
-    userId: string;
-    userName: string;
-    userInitials: string;
-    avatarColor: string;
-    text: string;
-    timeAgo: string;
-    isOwner: boolean;
-}
+import React, { useEffect, useState } from "react";
+import { useCreatePostComment, useDeleteComment, useGetPostComments, useLikeComment } from "@/hooks/usePosts";
+import { getMediaResource } from "@/appwrite/apis/auth";
+import { timeAgo } from "@/utils/dateUtils";
+import { getInitials } from "@/utils/stringUtils";
+import { useAuth } from "@/context/AuthContext";
+import { isLikedComment } from "@/appwrite/apis/posts";
+import LoadingSpinner from "./LoadingSpinner";
 
 interface CommentModalProps {
     visible: boolean;
     onClose: () => void;
     postUserName: string;
     currentUserId: string;
+    postId: string;
 }
 
-const CommentModal: React.FC<CommentModalProps> = ({
-    visible,
-    onClose,
-    postUserName,
-    currentUserId,
-}) => {
-    const [comments, setComments] = useState<Comment[]>([
-        {
-            id: "1",
-            userId: "user1",
-            userName: "Sarah Williams",
-            userInitials: "SW",
-            avatarColor: "#FF6B6B",
-            text: "This is amazing! Love it 🔥",
-            timeAgo: "2h ago",
-            isOwner: false,
-        },
-        {
-            id: "2",
-            userId: currentUserId,
-            userName: "You",
-            userInitials: "EA",
-            avatarColor: colors.primary,
-            text: "Thanks for sharing!",
-            timeAgo: "1h ago",
-            isOwner: true,
-        },
-    ]);
-    const [newComment, setNewComment] = useState("");
-    const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
-    const [showDeleteMenu, setShowDeleteMenu] = useState<string | null>(null);
+export const CommentModal = ({visible, onClose, postUserName, currentUserId, postId}: CommentModalProps) => {
+    const {user} = useAuth();
+    const {data:comments, isLoading: isGettingPost} = useGetPostComments(postId);
+    const {mutateAsync: likeComment, isPending: isLikingComment} = useLikeComment();
+    const {mutateAsync: createComment, isPending: isCreatingComment} = useCreatePostComment();
+    const {mutateAsync: deleteComment, isPending: isDeletingComment} = useDeleteComment();
+    const [mappedComments, setMappedComments] = useState<any[]>([]);
+    const [newComment, setNewComment] = useState('');
+    const [showDeleteMenu, setShowDeleteMenu] = useState(false);
+    const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
 
-    const handleAddComment = () => {
-        if (newComment.trim()) {
-            const comment: Comment = {
-                id: Date.now().toString(),
-                userId: currentUserId,
-                userName: "You",
-                userInitials: "EA",
-                avatarColor: colors.primary,
-                text: newComment,
-                timeAgo: "Just now",
-                isOwner: true,
-            };
-            setComments([...comments, comment]);
-            setNewComment("");
+
+    if(!user) return null;
+      React.useEffect(() => {
+        const fetchAvatar = async () => {
+          if (user?.avatar) {
+            const url = await getMediaResource(user.avatar);
+            setAvatarUrl(url?.uri ?? null);
+            console.log("Avatar URL:", url?.uri);
+          }
+        };
+        fetchAvatar();
+      }, [user?.avatar]);
+
+        useEffect(() => {
+        const loadComments = async () => {
+            if (!comments) return;
+
+            const updated = await Promise.all(
+                comments.map(async (c) => {
+                    let avatar = null;
+
+                    if (c.user?.avatar) {
+                        const media = await getMediaResource(c.user.avatar);
+                        avatar = media?.uri ?? null;
+                    }
+
+                    const liked = await isLikedComment(c.$id, user.$id);
+
+                    return {
+                        id: c.$id,
+                        user: {
+                            ...c.user,
+                            avatar,
+                        },
+                        content: c.content,
+                        createdAt: c.$createdAt,
+                        isLiked: liked,
+                    };
+                })
+            );
+
+            setMappedComments(updated);
+        };
+
+        loadComments();
+    }, [comments]);
+
+    const handleLikeComment = async(commentId: string, userId:string) => {
+        
+        setMappedComments((prev) => 
+            prev.map((c) => 
+                c.id === commentId ? {...c, isLiked: !c.isLiked} : c)
+        );
+
+        try {
+            await likeComment({commentId, userId});
+        } catch (error) {
+            console.log("Failed to like comment", error);
+
+            setMappedComments((prev) => 
+                prev.map((c) => 
+                    c.id === commentId ? {...c, isLiked: !c.isLiked} : c)
+            );
         }
-    };
+    }
 
-    const handleLikeComment = (commentId: string) => {
-        const newLiked = new Set(likedComments);
-        if (newLiked.has(commentId)) {
-            newLiked.delete(commentId);
-        } else {
-            newLiked.add(commentId);
+        const handleAddComment = () => {
+            if (!newComment.trim()) return;
+            try {
+                createComment({postId, userId: user.$id, content: newComment});
+                setNewComment("");
+            } catch (error) {
+                console.error("Error creating comment", error)
+            }
         }
-        setLikedComments(newLiked);
-    };
 
-    const handleDeleteComment = (commentId: string) => {
-        setComments(comments.filter(c => c.id !== commentId));
-        setShowDeleteMenu(null);
-    };
+    const handleDeleteComment = async(commentId: string) => {
+        try {
+            await deleteComment({commentId});
+        } catch (error) {
+            console.error("Error deleting comment", error)
+        }
+    }
 
-    const renderComment = ({ item }: { item: Comment }) => (
+    const renderComment = ({ item }: {item: any}) => (
         <View style={styles.commentItem}>
-            <View style={[styles.commentAvatar, { backgroundColor: item.avatarColor }]}>
-                <Text style={styles.commentAvatarText}>{item.userInitials}</Text>
+            <View style={styles.commentAvatar}>
+                {item.user.avatar ?
+                    <Image
+                        source={{uri: item.user.avatar}}
+                        style = {{ width: 36, height: 36, borderRadius: 18 }}
+                    />
+                    :
+                    <Text style={styles.commentAvatarText}>{getInitials(item.user.name)}</Text>
+                }
             </View>
             <View style={styles.commentContent}>
                 <View style={styles.commentHeader}>
-                    <Text style={styles.commentUserName}>{item.userName}</Text>
-                    <Text style={styles.commentTime}>{item.timeAgo}</Text>
+                    <Text style={styles.commentUserName}>{item.user.name}</Text>
+                    <Text style={styles.commentTime}>{timeAgo(item.createdAt)}</Text>
                 </View>
-                <Text style={styles.commentText}>{item.text}</Text>
+                <Text style={styles.commentText}>{item.content}</Text>
                 <View style={styles.commentActions}>
                     <Pressable
                         style={styles.commentActionButton}
-                        onPress={() => handleLikeComment(item.id)}
+                        onPress={() => handleLikeComment(item.id, user.$id)}
                     >
                         <TintIcon
-                            name={likedComments.has(item.id) ? "Heart-Filled" : "heart"}
+                            name={item.isLiked ? "Heart-Filled" : "heart"}
                             size={16}
-                            color={likedComments.has(item.id) ? colors.primary : colors.darkText}
+                            color={item.isLiked ? colors.primary : colors.darkText}
                         />
                         <Text style={styles.commentActionText}>Like</Text>
                     </Pressable>
                 </View>
             </View>
-            {item.isOwner && (
+            {item.user.$id === user.$id && (
                 <Pressable
                     style={styles.commentMenuButton}
                     onPress={() => setShowDeleteMenu(showDeleteMenu === item.id ? null : item.id)}
@@ -126,26 +161,34 @@ const CommentModal: React.FC<CommentModalProps> = ({
                         style={styles.deleteOption}
                         onPress={() => handleDeleteComment(item.id)}
                     >
-                        <TintIcon name="trash" size={16} color={colors.error} />
-                        <Text style={styles.deleteText}>Delete</Text>
+                        {isDeletingComment ? <LoadingSpinner color={colors.text}/> :
+                            (
+                                <>
+                                    <TintIcon name="trash" size={16} color={colors.error} />
+                                    <Text style={styles.deleteText}>Delete</Text>
+                                </>   
+                            )
+                        }
+                        
                     </Pressable>
                 </View>
             )}
         </View>
     );
 
+
     return (
-        <Modal
+        <Modal 
             visible={visible}
-            animationType="slide"
-            transparent={false}
+            animationType = "slide"
+            transparent = {false}
             onRequestClose={onClose}
         >
             <KeyboardAvoidingView
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.container}
             >
-                {/* Header */}
+                {/* header */}
                 <View style={styles.header}>
                     <Text style={styles.headerTitle}>Comments</Text>
                     <Pressable onPress={onClose} style={styles.closeButton}>
@@ -153,9 +196,9 @@ const CommentModal: React.FC<CommentModalProps> = ({
                     </Pressable>
                 </View>
 
-                {/* Comments List */}
+                {/* Comment list */}
                 <FlatList
-                    data={comments}
+                    data={mappedComments}
                     renderItem={renderComment}
                     keyExtractor={(item) => item.id}
                     style={styles.commentsList}
@@ -168,10 +211,17 @@ const CommentModal: React.FC<CommentModalProps> = ({
                     }
                 />
 
-                {/* Input Area */}
+                {/* Comment Input */}
                 <View style={styles.inputContainer}>
                     <View style={[styles.commentAvatar, { backgroundColor: colors.primary }]}>
-                        <Text style={styles.commentAvatarText}>EA</Text>
+                        {avatarUrl ? (
+                            <Image
+                                source={{ uri: avatarUrl }}
+                                style={{ width: 36, height: 36, borderRadius: 18 }}
+                            />
+                        ) : (
+                            <Text style={styles.commentAvatarText}>{getInitials(user?.name)}</Text>
+                        )}
                     </View>
                     <TextInput
                         style={styles.input}
@@ -187,26 +237,31 @@ const CommentModal: React.FC<CommentModalProps> = ({
                         onPress={handleAddComment}
                         disabled={!newComment.trim()}
                     >
+                    {isCreatingComment ? (
+                        <LoadingSpinner
+                            color={colors.text}
+                        />
+                    ) : (
                         <TintIcon
                             name="paper-plane"
                             size={20}
-                            color={newComment.trim() ? colors.primary : colors.darkText}
+                            color={colors.primary}
                         />
+                    )      
+                    }
                     </Pressable>
                 </View>
             </KeyboardAvoidingView>
         </Modal>
-    );
-};
-
-export default CommentModal;
+    )
+}
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: colors.black,
     },
-    header: {
+     header: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
@@ -243,24 +298,52 @@ const styles = StyleSheet.create({
         color: colors.darkText,
         fontSize: 14,
     },
+    inputContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 15,
+        borderTopWidth: 1,
+        borderTopColor: "rgba(255, 255, 255, 0.1)",
+        gap: 10,
+        bottom: 0,
+        position: "absolute",
+    },
+    input: {
+        flex: 1,
+        backgroundColor: colors.lightBunker,
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        color: colors.text,
+        fontSize: 14,
+        maxHeight: 100,
+    },
+    sendButton: {
+        padding: 8,
+    },
+    sendButtonDisabled: {
+        opacity: 0.5,
+    },
+    commentAvatar: {
+        width: 36,
+        height: 36,
+        alignItems: "center",
+        justifyContent: "center",
+        marginRight: 12,
+        borderRadius: borderRadius.round,
+        backgroundColor: colors.primary,
+    },
+    commentAvatarText: {
+        color: "black",
+        fontSize: 14,
+        fontFamily: fonts.bold,
+    },
     commentItem: {
         flexDirection: "row",
         marginBottom: 20,
         position: "relative",
     },
-    commentAvatar: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: "center",
-        justifyContent: "center",
-        marginRight: 12,
-    },
-    commentAvatarText: {
-        color: colors.text,
-        fontSize: 14,
-        fontFamily: fonts.bold,
-    },
+
     commentContent: {
         flex: 1,
     },
@@ -326,28 +409,5 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontFamily: fonts.regular,
     },
-    inputContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        padding: 15,
-        borderTopWidth: 1,
-        borderTopColor: "rgba(255, 255, 255, 0.1)",
-        gap: 10,
-    },
-    input: {
-        flex: 1,
-        backgroundColor: colors.lightBunker,
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        color: colors.text,
-        fontSize: 14,
-        maxHeight: 100,
-    },
-    sendButton: {
-        padding: 8,
-    },
-    sendButtonDisabled: {
-        opacity: 0.5,
-    },
-});
+
+})

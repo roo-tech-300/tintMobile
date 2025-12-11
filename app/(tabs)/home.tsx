@@ -1,4 +1,4 @@
-import { pictureView } from "@/appwrite/apis/auth";
+import { getMediaResource, pictureView } from "@/appwrite/apis/auth";
 import FeedItem from "@/components/FeedItem";
 import { HomeHeader } from "@/components/HomeHeader";
 import TintIcon from "@/components/Icon";
@@ -24,8 +24,9 @@ const Home = () => {
   React.useEffect(() => {
     const fetchAvatar = async () => {
       if (user?.avatar) {
-        const url = await pictureView(user.avatar);
-        setAvatarUrl(url ? url.toString() : null);
+        const url = await getMediaResource(user.avatar);
+        setAvatarUrl(url?.uri ?? null);
+        console.log("Avatar URL:", url?.uri);
       }
     };
     fetchAvatar();
