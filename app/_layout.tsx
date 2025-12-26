@@ -11,6 +11,8 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+const queryClient = new QueryClient();
+
 export default function RootLayout() {
 
   // Load custom fonts
@@ -26,8 +28,6 @@ export default function RootLayout() {
     return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Loading...</Text></View>;
   }
 
-
-  const queryClient = new QueryClient();
 
   return (
     <QueryClientProvider client={queryClient}>

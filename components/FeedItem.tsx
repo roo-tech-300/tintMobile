@@ -158,6 +158,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
             onLike={handleLike}
             isFollowing={isFollowing || false}
             onFollow={handleFollow}
+            PostId ={post.$id}
             onDelete={handleDelete}
         />
     );

@@ -28,6 +28,7 @@ interface PostProps {
     onDelete?: () => void;
     isFollowing?: boolean;
     onFollow?: () => void;
+    PostId: string
 }
 
 const Post: React.FC<PostProps> = ({
@@ -48,6 +49,7 @@ const Post: React.FC<PostProps> = ({
     onDelete,
     isFollowing = false,
     onFollow,
+    PostId,
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -306,7 +308,8 @@ const Post: React.FC<PostProps> = ({
                 visible={showComments}
                 onClose={() => setShowComments(false)}
                 postUserName={userName}
-                currentUserId="current-user-id"
+                currentUserId={currentUserId!}
+                PostId={PostId}
             />
         </View>
     );

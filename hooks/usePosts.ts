@@ -1,4 +1,4 @@
-import { createPost, deletePost, editPost, getPosts } from "@/appwrite/apis/posts";
+import { createPost, createPostComment, deletePost, editPost, getPosts } from "@/appwrite/apis/posts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface CreatePostParams {
@@ -92,4 +92,35 @@ export const useDeletePost = () => {
         }
     });
 };
+
+
+
+export function useCreatePostComment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      postId,
+      userId,
+      content,
+      parentCommentId,
+    }: {postId: string, userId: string, content: string, parentCommentId?: string}) =>
+      createPostComment(postId, userId, content, parentCommentId),
+
+    onSuccess: (_data, variables) => {
+      // just refetch comments for this post
+      queryClient.invalidateQueries({
+        queryKey: ['postComments', variables.postId],
+      });
+    },
+  });
+}
+
+// export function useGetPostComments() {
+//     return useQuery({
+//         queryKey: ['postComments', variables.postId],
+//         queryFn: () => getPostComments(variables.postId),
+//       });
+// }
+
 

@@ -1,7 +1,9 @@
+import { useCreatePostComment } from "@/hooks/usePosts";
 import { borderRadius, colors, fonts } from "@/theme/theme";
 import React, { useState } from "react";
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import TintIcon from "./Icon";
+import LoadingSpinner from "./LoadingSpinner";
 
 interface Comment {
     id: string;
@@ -19,14 +21,17 @@ interface CommentModalProps {
     onClose: () => void;
     postUserName: string;
     currentUserId: string;
+    PostId: string;
 }
 
 const CommentModal: React.FC<CommentModalProps> = ({
     visible,
     onClose,
+    PostId,
     postUserName,
     currentUserId,
 }) => {
+    const { mutateAsync: createComment, isPending: isCreatingComment } = useCreatePostComment();
     const [comments, setComments] = useState<Comment[]>([
         {
             id: "1",
@@ -54,19 +59,10 @@ const CommentModal: React.FC<CommentModalProps> = ({
     const [showDeleteMenu, setShowDeleteMenu] = useState<string | null>(null);
 
     const handleAddComment = () => {
-        if (newComment.trim()) {
-            const comment: Comment = {
-                id: Date.now().toString(),
-                userId: currentUserId,
-                userName: "You",
-                userInitials: "EA",
-                avatarColor: colors.primary,
-                text: newComment,
-                timeAgo: "Just now",
-                isOwner: true,
-            };
-            setComments([...comments, comment]);
-            setNewComment("");
+        try {
+            createComment({ postId: PostId, userId: currentUserId, content: newComment });
+        } catch (error) {
+            console.error("Error creating comment:", error);
         }
     };
 
@@ -185,13 +181,18 @@ const CommentModal: React.FC<CommentModalProps> = ({
                     <Pressable
                         style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
                         onPress={handleAddComment}
-                        disabled={!newComment.trim()}
+                        disabled={!newComment.trim() || isCreatingComment}
                     >
-                        <TintIcon
-                            name="paper-plane"
-                            size={20}
-                            color={newComment.trim() ? colors.primary : colors.darkText}
+                        {
+                            isCreatingComment ? <LoadingSpinner color= {colors.text} /> : 
+                                <TintIcon
+                                    name="paper-plane"
+                                    size={20}
+                                    color={newComment.trim() ? colors.primary : colors.darkText}
                         />
+                            
+                        }
+                        
                     </Pressable>
                 </View>
             </KeyboardAvoidingView>

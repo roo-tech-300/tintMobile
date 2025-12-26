@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { ID } from "react-native-appwrite";
+import { ID, Query } from "react-native-appwrite";
 import { databases, storage } from "../appwrite";
 import { getDbUser } from './auth';
 
@@ -7,9 +7,10 @@ const extra = Constants.expoConfig?.extra as {
     databaseId: string;
     postsCollectionId: string;
     mediaBucketId: string;
+    commentsCollectionId: string;
 };
 
-const { databaseId, postsCollectionId, mediaBucketId } = extra;
+const { databaseId, postsCollectionId, mediaBucketId, commentsCollectionId } = extra;
 
 export async function uploadFile(fileUri: string) {
     try {
@@ -152,3 +153,41 @@ export async function deletePost(postId: string) {
         throw error;
     }
 }
+
+export async function createPostComment(postId: string, userId:string, content:string, parentCommentId?: string) {
+    try {
+        
+        const newComment = await databases.createRow(
+            databaseId,
+            commentsCollectionId,
+            ID.unique(),
+            {
+                userId: userId,
+                postId: postId,
+                content: content,
+                parentCommentId: parentCommentId,
+            }
+        );
+        return newComment;
+    } catch (error) {
+        console.error("Error creating comment:", error);
+        throw error;
+    }
+}
+
+export async function getPostComments(postId: string){
+    try {
+        const comments = await databases.listRows(
+            databaseId,
+            commentsCollectionId,
+            [
+                Query.equal('postId', postId)
+            ]
+        );
+        return comments;
+    } catch (error) {
+        console.error("Error getting comments:", error);
+        throw error;
+    }
+}
+
