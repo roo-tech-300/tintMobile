@@ -1,13 +1,14 @@
-import { borderRadius, colors, fonts } from "@/theme/theme";
-import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native"
-import TintIcon from "./Icon";
-import React, { useEffect, useState } from "react";
-import { useCreatePostComment, useDeleteComment, useGetPostComments, useLikeComment } from "@/hooks/usePosts";
 import { getMediaResource } from "@/appwrite/apis/auth";
+import { isLikedComment } from "@/appwrite/apis/posts";
+import { useAuth } from "@/context/AuthContext";
+import { useCreatePostComment, useDeleteComment, useGetPostComments, useLikeComment } from "@/hooks/usePosts";
+import { borderRadius, colors, fonts } from "@/theme/theme";
 import { timeAgo } from "@/utils/dateUtils";
 import { getInitials } from "@/utils/stringUtils";
-import { useAuth } from "@/context/AuthContext";
-import { isLikedComment } from "@/appwrite/apis/posts";
+import React, { useEffect, useState } from "react";
+import { FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import ConfirmModal from "./ConfirmModal";
+import TintIcon from "./Icon";
 import LoadingSpinner from "./LoadingSpinner";
 
 interface CommentModalProps {
@@ -18,31 +19,33 @@ interface CommentModalProps {
     postId: string;
 }
 
-export const CommentModal = ({visible, onClose, postUserName, currentUserId, postId}: CommentModalProps) => {
-    const {user} = useAuth();
-    const {data:comments, isLoading: isGettingPost} = useGetPostComments(postId);
-    const {mutateAsync: likeComment, isPending: isLikingComment} = useLikeComment();
-    const {mutateAsync: createComment, isPending: isCreatingComment} = useCreatePostComment();
-    const {mutateAsync: deleteComment, isPending: isDeletingComment} = useDeleteComment();
+export const CommentModal = ({ visible, onClose, postUserName, currentUserId, postId }: CommentModalProps) => {
+    const { user } = useAuth();
+    const { data: comments, isLoading: isGettingPost } = useGetPostComments(postId);
+    const { mutateAsync: likeComment, isPending: isLikingComment } = useLikeComment();
+    const { mutateAsync: createComment, isPending: isCreatingComment } = useCreatePostComment();
+    const { mutateAsync: deleteComment, isPending: isDeletingComment } = useDeleteComment();
     const [mappedComments, setMappedComments] = useState<any[]>([]);
     const [newComment, setNewComment] = useState('');
     const [showDeleteMenu, setShowDeleteMenu] = useState(false);
     const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+    const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+    const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
 
-    if(!user) return null;
-      React.useEffect(() => {
+    if (!user) return null;
+    React.useEffect(() => {
         const fetchAvatar = async () => {
-          if (user?.avatar) {
-            const url = await getMediaResource(user.avatar);
-            setAvatarUrl(url?.uri ?? null);
-            console.log("Avatar URL:", url?.uri);
-          }
+            if (user?.avatar) {
+                const url = await getMediaResource(user.avatar);
+                setAvatarUrl(url?.uri ?? null);
+                console.log("Avatar URL:", url?.uri);
+            }
         };
         fetchAvatar();
-      }, [user?.avatar]);
+    }, [user?.avatar]);
 
-        useEffect(() => {
+    useEffect(() => {
         const loadComments = async () => {
             if (!comments) return;
 
@@ -76,50 +79,60 @@ export const CommentModal = ({visible, onClose, postUserName, currentUserId, pos
         loadComments();
     }, [comments]);
 
-    const handleLikeComment = async(commentId: string, userId:string) => {
-        
-        setMappedComments((prev) => 
-            prev.map((c) => 
-                c.id === commentId ? {...c, isLiked: !c.isLiked} : c)
+    const handleLikeComment = async (commentId: string, userId: string) => {
+
+        setMappedComments((prev) =>
+            prev.map((c) =>
+                c.id === commentId ? { ...c, isLiked: !c.isLiked } : c)
         );
 
         try {
-            await likeComment({commentId, userId});
+            await likeComment({ commentId, userId });
         } catch (error) {
             console.log("Failed to like comment", error);
 
-            setMappedComments((prev) => 
-                prev.map((c) => 
-                    c.id === commentId ? {...c, isLiked: !c.isLiked} : c)
+            setMappedComments((prev) =>
+                prev.map((c) =>
+                    c.id === commentId ? { ...c, isLiked: !c.isLiked } : c)
             );
         }
     }
 
-        const handleAddComment = () => {
-            if (!newComment.trim()) return;
-            try {
-                createComment({postId, userId: user.$id, content: newComment});
-                setNewComment("");
-            } catch (error) {
-                console.error("Error creating comment", error)
-            }
-        }
-
-    const handleDeleteComment = async(commentId: string) => {
+    const handleAddComment = () => {
+        if (!newComment.trim()) return;
         try {
-            await deleteComment({commentId});
+            createComment({ postId, userId: user.$id, content: newComment });
+            setNewComment("");
         } catch (error) {
-            console.error("Error deleting comment", error)
+            console.error("Error creating comment", error)
         }
     }
 
-    const renderComment = ({ item }: {item: any}) => (
+    const onRequestDelete = (commentId: string) => {
+        setCommentToDelete(commentId);
+        setConfirmDeleteVisible(true);
+        setShowDeleteMenu(false); // or keep it? better to close menu
+    }
+
+    const handleConfirmDelete = async () => {
+        if (!commentToDelete) return;
+        try {
+            await deleteComment({ commentId: commentToDelete });
+        } catch (error) {
+            console.error("Error deleting comment", error)
+        } finally {
+            setConfirmDeleteVisible(false);
+            setCommentToDelete(null);
+        }
+    }
+
+    const renderComment = ({ item }: { item: any }) => (
         <View style={styles.commentItem}>
             <View style={styles.commentAvatar}>
                 {item.user.avatar ?
                     <Image
-                        source={{uri: item.user.avatar}}
-                        style = {{ width: 36, height: 36, borderRadius: 18 }}
+                        source={{ uri: item.user.avatar }}
+                        style={{ width: 36, height: 36, borderRadius: 18 }}
                     />
                     :
                     <Text style={styles.commentAvatarText}>{getInitials(item.user.name)}</Text>
@@ -159,17 +172,17 @@ export const CommentModal = ({visible, onClose, postUserName, currentUserId, pos
                 <View style={styles.deleteMenu}>
                     <Pressable
                         style={styles.deleteOption}
-                        onPress={() => handleDeleteComment(item.id)}
+                        onPress={() => onRequestDelete(item.id)}
                     >
-                        {isDeletingComment ? <LoadingSpinner color={colors.text}/> :
+                        {isDeletingComment ? <LoadingSpinner color={colors.text} /> :
                             (
                                 <>
                                     <TintIcon name="trash" size={16} color={colors.error} />
                                     <Text style={styles.deleteText}>Delete</Text>
-                                </>   
+                                </>
                             )
                         }
-                        
+
                     </Pressable>
                 </View>
             )}
@@ -178,10 +191,10 @@ export const CommentModal = ({visible, onClose, postUserName, currentUserId, pos
 
 
     return (
-        <Modal 
+        <Modal
             visible={visible}
-            animationType = "slide"
-            transparent = {false}
+            animationType="slide"
+            transparent={false}
             onRequestClose={onClose}
         >
             <KeyboardAvoidingView
@@ -237,21 +250,27 @@ export const CommentModal = ({visible, onClose, postUserName, currentUserId, pos
                         onPress={handleAddComment}
                         disabled={!newComment.trim()}
                     >
-                    {isCreatingComment ? (
-                        <LoadingSpinner
-                            color={colors.text}
-                        />
-                    ) : (
-                        <TintIcon
-                            name="paper-plane"
-                            size={20}
-                            color={colors.primary}
-                        />
-                    )      
-                    }
+                        {isCreatingComment ? (
+                            <LoadingSpinner
+                                color={colors.text}
+                            />
+                        ) : (
+                            <TintIcon
+                                name="paper-plane"
+                                size={20}
+                                color={colors.primary}
+                            />
+                        )
+                        }
                     </Pressable>
                 </View>
             </KeyboardAvoidingView>
+            <ConfirmModal
+                visible={confirmDeleteVisible}
+                message="Are you sure you want to delete this comment?"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setConfirmDeleteVisible(false)}
+            />
         </Modal>
     )
 }
@@ -261,7 +280,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.black,
     },
-     header: {
+    header: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",

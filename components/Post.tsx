@@ -2,9 +2,9 @@ import { borderRadius, colors, fonts } from "@/theme/theme";
 import { ResizeMode, Video } from "expo-av";
 import React, { useRef, useState } from "react";
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
-import TintIcon from "./Icon";
-import ConfirmModal from "./ConfirmModal";
 import { CommentModal } from "./CommentModal";
+import ConfirmModal from "./ConfirmModal";
+import TintIcon from "./Icon";
 
 interface MediaItem {
     uri: string;
@@ -292,7 +292,7 @@ const Post: React.FC<PostProps> = ({
                                 {isUser && (
                                     <Pressable style={styles.menuOption} onPress={() => {
                                         setShowMenu(false);
-                                        onDelete?.();
+                                        setShowConfirmDelete(true);
                                     }}>
                                         <TintIcon name="trash" size={20} color={colors.error} />
                                         <Text style={[styles.menuOptionText, { color: colors.error }]}>Delete Post</Text>
