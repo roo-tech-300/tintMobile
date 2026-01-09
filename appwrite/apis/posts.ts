@@ -8,9 +8,10 @@ const extra = Constants.expoConfig?.extra as {
     postsCollectionId: string;
     commentsCollectionId: string;
     mediaBucketId: string;
+    savedPostsCollectionId: string;
 };
 
-const { databaseId, postsCollectionId, mediaBucketId, commentsCollectionId } = extra;
+const { databaseId, postsCollectionId, mediaBucketId, commentsCollectionId, savedPostsCollectionId } = extra;
 
 export async function uploadFile(fileUri: string) {
     try {
@@ -53,7 +54,7 @@ export async function createPost(
         );
 
 
-      //create Post document
+        //create Post document
         const uniqueId = ID.unique();
         console.log("Generated ID:", uniqueId);
 
@@ -180,7 +181,7 @@ export async function deletePost(postId: string) {
     }
 }
 
-export async function getPostComment( postId: string){
+export async function getPostComment(postId: string) {
     try {
         const com = await databases.listRows(
             databaseId,
@@ -193,13 +194,13 @@ export async function getPostComment( postId: string){
         await Promise.all(
             com.rows.map(async (comment) => {
 
-            const user = await getDbUser(comment.userId);
+                const user = await getDbUser(comment.userId);
 
-            postComment.push({
-                ...comment,
-                user: user
-            });
-        }));
+                postComment.push({
+                    ...comment,
+                    user: user
+                });
+            }));
         console.log("Post comments:", postComment);
         return postComment;
     } catch (error) {
@@ -208,7 +209,7 @@ export async function getPostComment( postId: string){
     }
 }
 
-export async function isLikedComment(commentId: string, userId:string) {
+export async function isLikedComment(commentId: string, userId: string) {
     try {
         const comment = await databases.getRow(
             databaseId,
@@ -223,7 +224,7 @@ export async function isLikedComment(commentId: string, userId:string) {
     }
 }
 
-export async function likeComment(commentId: string, userId:string) {
+export async function likeComment(commentId: string, userId: string) {
     try {
         const comment = await databases.getRow(
             databaseId,
@@ -233,9 +234,9 @@ export async function likeComment(commentId: string, userId:string) {
 
         const isLiked = await isLikedComment(commentId, userId);
         const likes = comment.likes;
-        if(isLiked){
+        if (isLiked) {
             likes.splice(likes.indexOf(userId), 1);
-        }else{
+        } else {
             likes.push(userId);
         }
         const likedComment = await databases.updateRow(
@@ -253,9 +254,9 @@ export async function likeComment(commentId: string, userId:string) {
     }
 }
 
-export async function createPostComment(postId: string, userId:string, content:string, parentCommentId?: string) {
+export async function createPostComment(postId: string, userId: string, content: string, parentCommentId?: string) {
     try {
-        
+
         const newComment = await databases.createRow(
             databaseId,
             commentsCollectionId,
@@ -284,6 +285,59 @@ export async function deleteComment(commentId: string) {
         return deletedComment;
     } catch (error) {
         console.error("Error deleting comment:", error);
+        throw error;
+    }
+}
+
+export async function savePost(userId: string, postId: string) {
+    try {
+        // Check if already saved using listRows instead of relying on ID collision
+        const existing = await isSavedPost(userId, postId);
+        if (existing) {
+            return existing;
+        }
+
+        return await databases.createRow(
+            databaseId,
+            savedPostsCollectionId,
+            ID.unique(),
+            { userId, postId }
+        );
+    } catch (error: any) {
+        throw error;
+    }
+}
+
+export async function unsavePost(userId: string, postId: string) {
+    try {
+        // Find the document ID first since we can't derive it from userId_postId anymore
+        const savedPost = await isSavedPost(userId, postId);
+
+        if (savedPost) {
+            return await databases.deleteRow(
+                databaseId,
+                savedPostsCollectionId,
+                savedPost.$id
+            );
+        }
+        return null;
+    } catch (error: any) {
+        throw error;
+    }
+}
+
+export async function isSavedPost(userId: string, postId: string) {
+    try {
+        const response = await databases.listRows(
+            databaseId,
+            savedPostsCollectionId,
+            [
+                Query.equal("userId", userId),
+                Query.equal("postId", postId)
+            ]
+        );
+        return response.rows[0] || null;
+    } catch (error: any) {
         throw error;
     }
 }

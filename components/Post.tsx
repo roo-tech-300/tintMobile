@@ -1,6 +1,8 @@
+import { useIsSavedPost, useSavePost, useUnsavePost } from "@/hooks/usePosts";
 import { borderRadius, colors, fonts } from "@/theme/theme";
+import { sharePost } from "@/utils/share";
 import { ResizeMode, Video } from "expo-av";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
 import { CommentModal } from "./CommentModal";
 import ConfirmModal from "./ConfirmModal";
@@ -60,10 +62,18 @@ const Post: React.FC<PostProps> = ({
     const [showComments, setShowComments] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
     const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+    const [isSaved, setIsSaved] = useState(false);
 
-
+    const { data: isSavedPost, isLoading: isSavedPostLoading } = useIsSavedPost(currentUserId || "", postId || "");
+    const { mutate: savePost } = useSavePost();
+    const { mutate: unsavePost } = useUnsavePost();
     const isLiked = likes.includes(currentUserId || "");
 
+    useEffect(() => {
+        if (currentUserId && isSavedPost !== undefined) {
+            setIsSaved(!!isSavedPost)
+        }
+    }, [currentUserId, postId, isSavedPost]);
     // Tap handling
     const lastTap = useRef<number | null>(null);
     const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,6 +125,39 @@ const Post: React.FC<PostProps> = ({
             </>
         );
     };
+
+    const handleShare = async (caption: string) => {
+        try {
+            if (!caption) {
+                throw new Error("Nothing to share");
+            }
+
+            await sharePost(caption);
+            setShowMenu(false)
+
+        } catch (error) {
+            console.error("Share failed:", error);
+        }
+    }
+
+   const handleSavePost = () => {
+    if (!postId || !currentUserId) return;
+
+    if (isSaved) {
+        unsavePost(
+            { postId, userId: currentUserId },
+            { onError: () => setIsSaved(true) }
+        );
+        setIsSaved(false);
+    } else {
+        savePost(
+            { postId, userId: currentUserId },
+            { onError: () => setIsSaved(false) }
+        );
+        setIsSaved(true);
+    }
+};
+
 
     const handleScroll = (event: any) => {
         const scrollPosition = event.nativeEvent.contentOffset.x;
@@ -279,14 +322,14 @@ const Post: React.FC<PostProps> = ({
                                     <TintIcon name="edit-1" size={20} color={colors.text} />
                                     <Text style={styles.menuOptionText}>Edit</Text>
                                 </Pressable>
-                                <Pressable style={styles.menuOption} onPress={() => setShowMenu(false)}>
+                                <Pressable style={styles.menuOption} onPress={() => handleShare(caption)}>
                                     <TintIcon name="share" size={20} color={colors.text} />
                                     <Text style={styles.menuOptionText}>Share</Text>
                                 </Pressable>
 
-                                <Pressable style={styles.menuOption} onPress={() => setShowMenu(false)}>
+                                <Pressable style={styles.menuOption} onPress={() => handleSavePost()}>
                                     <TintIcon name="bookmark" size={20} color={colors.text} />
-                                    <Text style={styles.menuOptionText}>Save Post</Text>
+                                    <Text style={styles.menuOptionText}>{isSaved ? 'Unsave Post' : 'Save Post'}</Text>
                                 </Pressable>
 
                                 {isUser && (

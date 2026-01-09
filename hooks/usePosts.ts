@@ -1,4 +1,4 @@
-import { createPost, createPostComment, deleteComment, deletePost, editPost, getPostComment, getPosts, likeComment } from "@/appwrite/apis/posts";
+import { createPost, createPostComment, deleteComment, deletePost, editPost, getPostComment, getPosts, isSavedPost, likeComment, savePost, unsavePost } from "@/appwrite/apis/posts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface CreatePostParams {
@@ -121,7 +121,7 @@ export const useLikeComment = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({commentId, userId}: {commentId: string, userId: string}) => {
+        mutationFn: async ({ commentId, userId }: { commentId: string, userId: string }) => {
             return await likeComment(commentId, userId);
         },
         onSuccess: () => {
@@ -137,7 +137,7 @@ export const useDeleteComment = () => {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async ({commentId}: {commentId: string}) => {
+        mutationFn: async ({ commentId }: { commentId: string }) => {
             return await deleteComment(commentId);
         },
         onSuccess: () => {
@@ -146,5 +146,44 @@ export const useDeleteComment = () => {
         onError: (error) => {
             console.error("Error deleting comment in mutation:", error);
         }
+    });
+};
+
+export const useSavePost = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ postId, userId }: { postId: string, userId: string }) => {
+            return await savePost(userId, postId); // ✅ correct order
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["posts"] });
+        },
+        onError: (error) => {
+            console.error("Error saving post in mutation:", error);
+        }
+    });
+};
+
+export const useUnsavePost = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ postId, userId }: { postId: string, userId: string }) => {
+            return await unsavePost(userId, postId); // ✅ correct order
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["posts"] });
+        },
+        onError: (error) => {
+            console.error("Error unsaving post in mutation:", error);
+        }
+    });
+};
+
+export const useIsSavedPost = (userId: string, postId: string) => {
+    return useQuery({
+        queryKey: ["saved-posts", userId, postId],
+        queryFn: async () => await isSavedPost(userId, postId),
     });
 };
