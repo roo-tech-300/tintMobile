@@ -7,6 +7,8 @@ import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, Touc
 import { CommentModal } from "./CommentModal";
 import ConfirmModal from "./ConfirmModal";
 import TintIcon from "./Icon";
+import MediaViewerModal from "./MediaViewerModal";
+import VerifiedBadge from "./VerifiedBadge";
 
 interface MediaItem {
     uri: string;
@@ -33,6 +35,7 @@ interface PostProps {
     onFollow?: () => void;
     onEdit?: () => void;
     postId?: string;
+    isVerified: boolean;
 }
 
 const Post: React.FC<PostProps> = ({
@@ -55,6 +58,7 @@ const Post: React.FC<PostProps> = ({
     onFollow,
     onEdit,
     postId,
+    isVerified
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -63,6 +67,9 @@ const Post: React.FC<PostProps> = ({
     const [isPlaying, setIsPlaying] = useState(true);
     const [showConfirmDelete, setShowConfirmDelete] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
+    const [showMediaViewer, setShowMediaViewer] = useState(false);
+    const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+
 
     const { data: isSavedPost, isLoading: isSavedPostLoading } = useIsSavedPost(currentUserId || "", postId || "");
     const { mutate: savePost } = useSavePost();
@@ -140,23 +147,32 @@ const Post: React.FC<PostProps> = ({
         }
     }
 
-   const handleSavePost = () => {
-    if (!postId || !currentUserId) return;
+    const handleSavePost = () => {
+        if (!postId || !currentUserId) return;
 
-    if (isSaved) {
-        unsavePost(
-            { postId, userId: currentUserId },
-            { onError: () => setIsSaved(true) }
-        );
-        setIsSaved(false);
-    } else {
-        savePost(
-            { postId, userId: currentUserId },
-            { onError: () => setIsSaved(false) }
-        );
-        setIsSaved(true);
-    }
-};
+        if (isSaved) {
+            unsavePost(
+                { postId, userId: currentUserId },
+                { onError: () => setIsSaved(true) }
+            );
+            setIsSaved(false);
+        } else {
+            savePost(
+                { postId, userId: currentUserId },
+                { onError: () => setIsSaved(false) }
+            );
+            setIsSaved(true);
+        }
+    };
+
+    const openMediaViewer = (index: number) => {
+        setMediaViewerIndex(index);
+        setShowMediaViewer(true);
+    };
+
+    const closeMediaViewer = () => {
+        setShowMediaViewer(false);
+    };
 
 
     const handleScroll = (event: any) => {
@@ -196,6 +212,35 @@ const Post: React.FC<PostProps> = ({
         }
     };
 
+    const handleMediaTap = (index: number) => {
+        const now = Date.now();
+        const DOUBLE_TAP_DELAY = 300;
+
+        if (lastTap.current && now - lastTap.current < DOUBLE_TAP_DELAY) {
+            // DOUBLE TAP → Like
+            if (singleTapTimeout.current) {
+                clearTimeout(singleTapTimeout.current);
+                singleTapTimeout.current = null;
+            }
+
+            if (!isLiked) {
+                onLike?.();
+            }
+
+            lastTap.current = null;
+        } else {
+            // FIRST TAP → wait to see if second tap comes
+            lastTap.current = now;
+
+            singleTapTimeout.current = setTimeout(() => {
+                // SINGLE TAP → Open viewer
+                openMediaViewer(index);
+                lastTap.current = null;
+            }, DOUBLE_TAP_DELAY);
+        }
+    };
+
+
     return (
         <View style={styles.post}>
             <View style={styles.postHeader}>
@@ -212,9 +257,13 @@ const Post: React.FC<PostProps> = ({
                         )}
                     </View>
                     <View>
-                        <Text style={styles.userName}>{userName}</Text>
+                        <View style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
+                            <Text style={styles.userName}>{userName}</Text>
+                            {isVerified && <VerifiedBadge size={12} />}
+                        </View>
                         <Text style={styles.timeAgo}>{timeAgo}</Text>
                     </View>
+
                 </View>
                 {!isFollowing && !isUser && (
                     <Pressable
@@ -247,7 +296,15 @@ const Post: React.FC<PostProps> = ({
                         scrollEventThrottle={16}
                     >
                         {displayMedia.map((item, index) => (
-                            <TouchableWithoutFeedback key={index} onPress={handlePress}>
+                            <Pressable
+                                key={index}
+                                onPress={() => handleMediaTap(index)}
+                                onLongPress={() => {
+                                    if (item.type === "video") {
+                                        setIsPlaying(!isPlaying);
+                                    }
+                                }}
+                            >
                                 <View style={{ width: imageWidth, height: 300 }}>
                                     {item.type === 'video' ? (
                                         <Video
@@ -255,7 +312,7 @@ const Post: React.FC<PostProps> = ({
                                             source={{ uri: item.uri }}
                                             resizeMode={ResizeMode.CONTAIN}
                                             isLooping
-                                            shouldPlay={isVisible && index === currentImageIndex && isPlaying}
+                                            shouldPlay={isVisible && index === currentImageIndex && isPlaying && !showMediaViewer}
                                         />
                                     ) : (
                                         <Image
@@ -265,7 +322,7 @@ const Post: React.FC<PostProps> = ({
                                         />
                                     )}
                                 </View>
-                            </TouchableWithoutFeedback>
+                            </Pressable>
                         ))}
                     </ScrollView>
 
@@ -364,6 +421,12 @@ const Post: React.FC<PostProps> = ({
                 postUserName={userName}
                 currentUserId="current-user-id"
                 postId={postId!}
+            />
+            <MediaViewerModal
+                visible={showMediaViewer}
+                media={displayMedia}
+                startIndex={mediaViewerIndex}
+                onClose={() => setShowMediaViewer(false)}
             />
             <ConfirmModal
                 visible={showConfirmDelete}

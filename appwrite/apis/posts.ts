@@ -147,7 +147,11 @@ export async function getPost(postId: string) {
             postsCollectionId,
             postId
         );
-        return post;
+        const user = await getDbUser(post.user);
+        return {
+            ...post,
+            user: user
+        };
     } catch (error) {
         console.error("Error getting post:", error);
         throw error;
@@ -157,7 +161,7 @@ export async function getPost(postId: string) {
 export async function deletePost(postId: string) {
     try {
 
-        const post = await getPost(postId);
+        const post: any = await getPost(postId);
         if (post.media && Array.isArray(post.media)) {
             await Promise.all(
                 post.media.map(async (mediaId: string) => {

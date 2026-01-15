@@ -1,6 +1,6 @@
 export const colors = {
   background: '#44002B',        // Your brand purple
-  primary: '#FE31DF',      // Example secondary color
+  primary: '#FE31DF',   // Example secondary color
   text: '#FFFFFF',     // Light background
   black: '#000000',        // Cards, surfaces
   darkText: '#9E9E9E',    // Dark text

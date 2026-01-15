@@ -154,6 +154,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
 
     const postUserId = author ? author.$id : (typeof post.user === 'string' ? post.user : post.user?.$id);
     const isFollowing = author?.followers?.includes(user?.$id);
+    const isVerified = author?.verified;
 
     return (
         <Post
@@ -174,6 +175,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
             onDelete={handleDelete}
             onEdit={handleEdit}
             postId={post.$id}
+            isVerified= {isVerified}
         />
     );
 };

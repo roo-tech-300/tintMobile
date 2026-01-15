@@ -1,4 +1,4 @@
-import { createPost, createPostComment, deleteComment, deletePost, editPost, getPostComment, getPosts, isSavedPost, likeComment, savePost, unsavePost } from "@/appwrite/apis/posts";
+import { createPost, createPostComment, deleteComment, deletePost, editPost, getPost, getPostComment, getPosts, isSavedPost, likeComment, savePost, unsavePost } from "@/appwrite/apis/posts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface CreatePostParams {
@@ -30,6 +30,16 @@ export const useGetPosts = () => {
         queryFn: async () => {
             return await getPosts();
         },
+    });
+};
+
+export const useGetPost = (postId: string) => {
+    return useQuery({
+        queryKey: ["post", postId],
+        queryFn: async () => {
+            return await getPost(postId);
+        },
+        enabled: !!postId,
     });
 };
 

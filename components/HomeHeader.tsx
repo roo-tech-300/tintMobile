@@ -12,7 +12,7 @@ export const HomeHeader = ({ initials, avatar }: { initials: string, avatar?: st
       <Logo variant="image" size="medium" />
       <View style={styles.headerRight}>
         <TintIcon name="bell" size={25} color={colors.text} />
-        <Pressable style={styles.avatar} onPress={() => { router.push("/user/profile") }}>
+        <Pressable style={styles.avatar} onPress={() => { router.push("/user/profile")}}>
           {avatar ? (
             <Image
               source={{ uri: avatar }}
