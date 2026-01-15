@@ -32,8 +32,6 @@ export const CommentModal = ({ visible, onClose, postUserName, currentUserId, po
     const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
     const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
-
-    if (!user) return null;
     React.useEffect(() => {
         const fetchAvatar = async () => {
             if (user?.avatar) {
@@ -58,7 +56,7 @@ export const CommentModal = ({ visible, onClose, postUserName, currentUserId, po
                         avatar = media?.uri ?? null;
                     }
 
-                    const liked = await isLikedComment(c.$id, user.$id);
+                    const liked = user?.$id ? await isLikedComment(c.$id, user.$id) : false;
 
                     return {
                         id: c.$id,
@@ -101,7 +99,9 @@ export const CommentModal = ({ visible, onClose, postUserName, currentUserId, po
     const handleAddComment = () => {
         if (!newComment.trim()) return;
         try {
-            createComment({ postId, userId: user.$id, content: newComment });
+            if (user?.$id) {
+                createComment({ postId, userId: user.$id, content: newComment });
+            }
             setNewComment("");
         } catch (error) {
             console.error("Error creating comment", error)
@@ -147,7 +147,7 @@ export const CommentModal = ({ visible, onClose, postUserName, currentUserId, po
                 <View style={styles.commentActions}>
                     <Pressable
                         style={styles.commentActionButton}
-                        onPress={() => handleLikeComment(item.id, user.$id)}
+                        onPress={() => user?.$id && handleLikeComment(item.id, user.$id)}
                     >
                         <TintIcon
                             name={item.isLiked ? "Heart-Filled" : "heart"}
@@ -158,7 +158,7 @@ export const CommentModal = ({ visible, onClose, postUserName, currentUserId, po
                     </Pressable>
                 </View>
             </View>
-            {item.user.$id === user.$id && (
+            {item.user.$id === user?.$id && (
                 <Pressable
                     style={styles.commentMenuButton}
                     onPress={() => setShowDeleteMenu(showDeleteMenu === item.id ? null : item.id)}
@@ -189,6 +189,9 @@ export const CommentModal = ({ visible, onClose, postUserName, currentUserId, po
         </View>
     );
 
+
+    // Ensure user is authenticated before rendering
+    if (!user) return null;
 
     return (
         <Modal

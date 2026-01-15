@@ -1,11 +1,11 @@
-import { getMediaResource, pictureView } from "@/appwrite/apis/auth";
+import { getDbUser, getMediaResource, pictureView } from "@/appwrite/apis/auth";
 import TintIcon from '@/components/Icon';
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 import { useAuth } from "@/context/AuthContext";
 import { useGetPosts } from "@/hooks/usePosts";
 import { colors, fonts } from '@/theme/theme';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,8 @@ const COLUMN_COUNT = 3;
 const IMAGE_SIZE = screenWidth / COLUMN_COUNT;
 
 const PostThumbnail = ({ post, onPress }: { post: any; onPress: () => void }) => {
+    
+
     const [uri, setUri] = useState<string | null>(null);
     const mediaId = typeof post.media?.[0] === 'string' ? post.media[0] : post.media?.[0]?.$id;
 
@@ -25,6 +27,7 @@ const PostThumbnail = ({ post, onPress }: { post: any; onPress: () => void }) =>
             if (isMounted && res) setUri(res.uri);
         });
         return () => { isMounted = false; };
+
     }, [mediaId]);
 
     if (!uri) return <View style={[styles.postItem, { backgroundColor: colors.lightBunker }]} />;
@@ -38,39 +41,67 @@ const PostThumbnail = ({ post, onPress }: { post: any; onPress: () => void }) =>
 
 const Profile = () => {
     const router = useRouter();
-    const { user, logout } = useAuth();
+    const { userId } = useLocalSearchParams();
+    const { user: currentUser, logout } = useAuth();
     const { data: allPosts, isLoading: isPostsLoading } = useGetPosts();
+
+    const [profileUser, setProfileUser] = useState<any>(null);
+    const [isLoadingUser, setIsLoadingUser] = useState(true);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-    // Filter posts for current user
+    const isOwnProfile = !userId || userId === currentUser?.$id;
+
+    // Fetch User Data
+    useEffect(() => {
+        const fetchUser = async () => {
+            setIsLoadingUser(true);
+            if (isOwnProfile) {
+                setProfileUser(currentUser);
+            } else if (typeof userId === 'string') {
+                try {
+                    const fetchedUser = await getDbUser(userId);
+                    setProfileUser(fetchedUser);
+                } catch (error) {
+                    console.error("Error fetching user profile:", error);
+                }
+            }
+            setIsLoadingUser(false);
+        };
+
+        fetchUser();
+    }, [userId, currentUser, isOwnProfile]);
+
+    // Filter posts for the displayed user
     const userPosts = useMemo(() => {
-        if (!allPosts || !user) return [];
+        if (!allPosts || !profileUser) return [];
         return allPosts.filter((post: any) => {
             const postUserId = typeof post.user === 'string' ? post.user : post.user?.$id;
-            return postUserId === user.$id;
+            return postUserId === profileUser.$id;
         });
-    }, [allPosts, user]);
+    }, [allPosts, profileUser]);
 
     // Resolve Avatar URL
     useEffect(() => {
         const fetchAvatar = async () => {
-            if (user?.avatar) {
+            if (profileUser?.avatar) {
                 try {
-                    const url = await pictureView(user.avatar);
+                    const url = await pictureView(profileUser.avatar);
                     setAvatarUrl(url ? url.toString() : null);
                 } catch (e) {
                     console.error("Failed to fetch avatar", e);
                 }
+            } else {
+                setAvatarUrl(null);
             }
         };
         fetchAvatar();
-    }, [user?.avatar]);
+    }, [profileUser?.avatar]);
 
     // Derived Stats
     const stats = {
         posts: userPosts.length,
-        followers: user?.followers?.length || 0,
-        following: user?.following?.length || 0
+        followers: profileUser?.followers?.length || 0,
+        following: profileUser?.following?.length || 0
     };
 
     const renderHeader = () => (
@@ -82,25 +113,42 @@ const Profile = () => {
                 ) : (
                     <View style={[styles.avatar, styles.avatarPlaceholder]}>
                         <Text style={styles.avatarPlaceholderText}>
-                            {user?.name?.charAt(0).toUpperCase() || "U"}
+                            {profileUser?.name?.charAt(0).toUpperCase() || "U"}
                         </Text>
                     </View>
                 )}
             </View>
 
             {/* Name & Info */}
-            <Text style={styles.name}>{user?.name || "User"}</Text>
-            <Text style={styles.bio}>{user?.bio || "No bio yet."}</Text>
-            <Text style={styles.bio}>{user?.department || "No department yet."}</Text>
+            <Text style={styles.name}>{profileUser?.name || "User"}</Text>
+            <Text style={styles.bio}>{profileUser?.bio || "No bio yet."}</Text>
+            <Text style={styles.bio}>{profileUser?.department || "No department yet."}</Text>
 
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
-                <Pressable
-                    style={styles.actionButton}
-                    onPress={() => logout()}
-                >
-                    <Text style={styles.actionButtonText}>Edit Profile</Text>
-                </Pressable>
+                {isOwnProfile ? (
+                    <>
+                        <Pressable
+                            style={styles.actionButton}
+                            onPress={() => { /* Navigate to Edit Profile */ }}
+                        >
+                            <Text style={styles.actionButtonText}>Edit Profile</Text>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.actionButton, styles.logoutButton]}
+                            onPress={logout}
+                        >
+                            <Text style={[styles.actionButtonText, styles.logoutButtonText]}>Logout</Text>
+                        </Pressable>
+                    </>
+                ) : (
+                    <Pressable
+                        style={styles.actionButton}
+                        onPress={() => { /* Handle Follow */ }}
+                    >
+                        <Text style={styles.actionButtonText}>Follow</Text>
+                    </Pressable>
+                )}
             </View>
 
             {/* Stats */}
@@ -130,13 +178,21 @@ const Profile = () => {
                         pathname: '/post/post',
                         params: {
                             postId: item.$id,
-                            userId: user?.$id
+                            userId: profileUser?.$id
                         }
                     });
                 }}
             />
         );
     };
+
+    if (isLoadingUser) {
+        return (
+            <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+                <LoadingSpinner />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -146,11 +202,13 @@ const Profile = () => {
                     <Pressable onPress={() => router.back()} style={styles.backButton}>
                         <TintIcon name="angle-small-left" size={30} color={colors.text} />
                     </Pressable>
-                    <Text style={styles.navTitle}>{user?.name}</Text>
+                    <Text style={styles.navTitle}>{profileUser?.name}</Text>
                 </View>
-                <Pressable style={styles.settingsButton}>
-                    <TintIcon name="settings" size={24} color={colors.text} />
-                </Pressable>
+                {isOwnProfile && (
+                    <Pressable style={styles.settingsButton}>
+                        <TintIcon name="settings" size={24} color={colors.text} />
+                    </Pressable>
+                )}
             </View>
 
             {isPostsLoading ? (
@@ -173,8 +231,6 @@ const Profile = () => {
                     }
                 />
             )}
-
-
         </SafeAreaView>
     );
 };
