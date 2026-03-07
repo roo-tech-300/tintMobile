@@ -24,14 +24,19 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: colors.darkText,
         tabBarShowLabel: false,
         tabBarIndicatorStyle: { height: 0 }, // Hide top indicator
+        tabBarPressColor: "transparent", // Remove android ripple if preferred, or set to a color
+        tabBarPressOpacity: 1, // Ensure it feels responsive
         tabBarStyle: {
           backgroundColor: colors.black,
           borderTopWidth: 0,
-          height: Platform.OS === 'ios' ? 85 : 65, // Adjust for iOS home indicator
-          display: "flex",
+          height: Platform.OS === 'ios' ? 85 : 65,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarItemStyle: {
+          height: 65,
           justifyContent: "center",
-          elevation: 0, // Remove shadow on Android
-          shadowOpacity: 0, // Remove shadow on iOS
+          alignItems: "center",
         },
         swipeEnabled: true,
       }}

@@ -1,83 +1,64 @@
 import TintIcon from "@/components/Icon";
+import { useAuth } from "@/context/AuthContext";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useClearRecentSearches, useDeleteRecentSearch, useGetRecentSearches, useSaveRecentSearch, useSearchPosts, useSearchUsers } from "@/hooks/useSearch";
 import { colors, fonts } from "@/theme/theme";
 import { getAvatarColorForUser } from "@/utils/avatarColors";
+import { useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-interface SearchItem {
-  id: string;
-  name: string;
-  username: string;
-  initials: string;
-  type: "user" | "community" | "post" | "event";
-}
-
 const Search = () => {
+  const { user: currentUser } = useAuth();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState<SearchItem[]>([
-    { id: "1", name: "Sarah Williams", username: "@sarahw", initials: "SW", type: "user" },
-    { id: "2", name: "Tech Enthusiasts", username: "250 members", initials: "TE", type: "community" },
-    { id: "3", name: "How to build a startup", username: "Posted 2h ago", initials: "HT", type: "post" },
-  ]);
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
 
-  const [recommendedSearches] = useState<SearchItem[]>([
-    { id: "4", name: "Emma Johnson", username: "@emmaj", initials: "EJ", type: "user" },
-    { id: "5", name: "Design Community", username: "1.2k members", initials: "DC", type: "community" },
-    { id: "6", name: "Hackathon 2024", username: "Dec 15, 2024", initials: "H2", type: "event" },
-    { id: "7", name: "Top 10 productivity tips", username: "Posted 1d ago", initials: "T1", type: "post" },
-    { id: "8", name: "Fitness Meetup", username: "Dec 10, 2024", initials: "FM", type: "event" },
-    { id: "9", name: "Lisa Anderson", username: "@lisaa", initials: "LA", type: "user" },
-  ]);
+  // Queries using the new hooks
+  const { data: recentSearches = [], isLoading: isLoadingRecent } = useGetRecentSearches(currentUser?.$id);
+  const { data: userResults = [], isLoading: isLoadingUsers } = useSearchUsers(debouncedSearchQuery);
+  const { data: postResults = [], isLoading: isLoadingPosts } = useSearchPosts(debouncedSearchQuery);
+
+  // Mutations using the new hooks
+  const { mutateAsync: saveSearchMutation } = useSaveRecentSearch();
+  const { mutateAsync: deleteSearchMutation } = useDeleteRecentSearch();
+  const { mutateAsync: clearAllMutation } = useClearRecentSearches();
+
+  const handleResultPress = (item: any, type: "user" | "post") => {
+    // We encode the type and ID into the search value so we can style recent searches properly
+    // format: type|id|displayValue
+    const displayValue = type === "user" ? item.name : item.caption;
+    const searchValue = `${type}|${item.$id}|${displayValue}`;
+
+    if (searchValue && currentUser?.$id) {
+      saveSearchMutation({ userId: currentUser.$id, searchValue });
+    }
+
+    if (type === "user") {
+      router.push(`/user/${item.$id}`);
+    } else if (type === "post") {
+      router.push({
+        pathname: "/post/post",
+        params: { postId: item.$id }
+      });
+    }
+  };
 
   const removeRecentSearch = (id: string) => {
-    setRecentSearches(recentSearches.filter(item => item.id !== id));
+    deleteSearchMutation(id);
   };
 
   const clearAllRecent = () => {
-    setRecentSearches([]);
+    if (currentUser?.$id) {
+      clearAllMutation(currentUser.$id);
+    }
   };
 
-  // All available search items (simulating database)
-  const allSearchItems: SearchItem[] = [
-    // Users
-    { id: "1", name: "Sarah Williams", username: "@sarahw", initials: "SW", type: "user" },
-    { id: "4", name: "Emma Johnson", username: "@emmaj", initials: "EJ", type: "user" },
-    { id: "9", name: "Lisa Anderson", username: "@lisaa", initials: "LA", type: "user" },
-    { id: "10", name: "Michael Chen", username: "@michaelc", initials: "MC", type: "user" },
-    { id: "11", name: "David Brown", username: "@davidb", initials: "DB", type: "user" },
-
-    // Communities
-    { id: "2", name: "Tech Enthusiasts", username: "250 members", initials: "TE", type: "community" },
-    { id: "5", name: "Design Community", username: "1.2k members", initials: "DC", type: "community" },
-    { id: "12", name: "Fitness Lovers", username: "890 members", initials: "FL", type: "community" },
-    { id: "13", name: "Startup Founders", username: "3.5k members", initials: "SF", type: "community" },
-
-    // Posts
-    { id: "3", name: "How to build a startup", username: "Posted 2h ago", initials: "HT", type: "post" },
-    { id: "7", name: "Top 10 productivity tips", username: "Posted 1d ago", initials: "T1", type: "post" },
-    { id: "14", name: "Best coding practices 2024", username: "Posted 3h ago", initials: "BC", type: "post" },
-    { id: "15", name: "Design trends to watch", username: "Posted 5h ago", initials: "DT", type: "post" },
-
-    // Events
-    { id: "6", name: "Hackathon 2024", username: "Dec 15, 2024", initials: "H2", type: "event" },
-    { id: "8", name: "Fitness Meetup", username: "Dec 10, 2024", initials: "FM", type: "event" },
-    { id: "16", name: "Tech Conference", username: "Jan 20, 2025", initials: "TC", type: "event" },
-    { id: "17", name: "Design Workshop", username: "Dec 18, 2024", initials: "DW", type: "event" },
-  ];
-
-  // Filter search results based on query
-  const searchResults = searchQuery.trim()
-    ? allSearchItems.filter(item =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.username.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    : [];
-
-  const getTypeIcon = (type: SearchItem["type"]) => {
+  const getTypeIcon = (type: string) => {
     switch (type) {
       case "user":
-        return null; // Users show initials
+        return null;
       case "community":
         return "users-alt";
       case "post":
@@ -89,31 +70,91 @@ const Search = () => {
     }
   };
 
+  const renderSearchItem = (item: any, isRecent: boolean = false) => {
+    let type: string;
+    let displayName: string;
+    let id: string;
+    let displayUsername: string = "";
+    let displayInitials: string = "";
+    let isEncoded = false;
 
+    if (isRecent) {
+      // Check if it's an encoded string (type|id|name)
+      if (item.searchValue.includes("|")) {
+        const [t, i, n] = item.searchValue.split("|");
+        type = t || "user";
+        id = i || item.$id;
+        displayName = n || item.searchValue;
+        isEncoded = true;
+      } else {
+        // Fallback for old/simple search strings
+        type = "query";
+        displayName = item.searchValue;
+        id = item.$id;
+      }
 
-  const renderSearchItem = (item: SearchItem, showRemove: boolean = false) => {
-    const typeIcon = getTypeIcon(item.type);
+      return (
+        <Pressable
+          key={item.$id}
+          style={styles.searchItem}
+          onPress={() => isEncoded ? handleResultPress({ $id: id, name: displayName, caption: displayName }, type as any) : setSearchQuery(item.searchValue)}
+        >
+          <View style={[styles.avatar, { backgroundColor: isEncoded ? getAvatarColorForUser(id) : colors.lightBunker }]}>
+            {type === "user" ? (
+              <TintIcon name="user" size={18} color={colors.text} />
+            ) : type === "post" ? (
+              <TintIcon name="document-text" size={18} color={colors.text} />
+            ) : (
+              <TintIcon name="clock" size={18} color={colors.darkText} />
+            )}
+          </View>
+          <View style={styles.searchItemContent}>
+            <View style={styles.nameRow}>
+              <Text style={styles.searchItemName} numberOfLines={1}>{displayName}</Text>
+              {isEncoded && (
+                <View style={[styles.typeBadge, { backgroundColor: type === 'user' ? colors.primary + '20' : colors.background + '20' }]}>
+                  <Text style={[styles.typeBadgeText, { color: type === 'user' ? colors.primary : colors.background }]}>
+                    {type}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <Pressable onPress={() => removeRecentSearch(item.$id)} style={styles.removeButton}>
+            <TintIcon name="cross" size={16} color={colors.darkText} />
+          </Pressable>
+        </Pressable>
+      );
+    }
+
+    type = item.caption ? "post" : "user";
+    const typeIcon = getTypeIcon(type);
+    id = item.$id;
+
+    // Normalize display data
+    displayName = type === "user" ? item.name : item.caption;
+    displayUsername = type === "user" ? `@${item.username}` : `Posted by ${item.user?.name || 'Unknown'}`;
+    displayInitials = type === "user" ? (item.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase() || "??") : "PO";
 
     return (
-      <Pressable key={item.id} style={styles.searchItem}>
-        <View style={[styles.avatar, { backgroundColor: getAvatarColorForUser(item.id) }]}>
-          {item.type === "user" ? (
-            <Text style={styles.avatarText}>{item.initials}</Text>
+      <Pressable
+        key={item.$id}
+        style={styles.searchItem}
+        onPress={() => handleResultPress(item, type as any)}
+      >
+        <View style={[styles.avatar, { backgroundColor: getAvatarColorForUser(id) }]}>
+          {type === "user" ? (
+            <Text style={styles.avatarText}>{displayInitials}</Text>
           ) : (
             <TintIcon name={typeIcon!} size={20} color={colors.text} />
           )}
         </View>
         <View style={styles.searchItemContent}>
           <View style={styles.nameRow}>
-            <Text style={styles.searchItemName}>{item.name}</Text>
+            <Text style={styles.searchItemName} numberOfLines={1}>{displayName}</Text>
           </View>
-          <Text style={styles.searchItemUsername}>{item.username}</Text>
+          <Text style={styles.searchItemUsername} numberOfLines={1}>{displayUsername}</Text>
         </View>
-        {showRemove && (
-          <Pressable onPress={() => removeRecentSearch(item.id)} style={styles.removeButton}>
-            <TintIcon name="cross" size={16} color={colors.darkText} />
-          </Pressable>
-        )}
       </Pressable>
     );
   };
@@ -145,12 +186,16 @@ const Search = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                Results ({searchResults.length})
+                Results ({(userResults?.length || 0) + (postResults?.length || 0)})
               </Text>
             </View>
-            {searchResults.length > 0 ? (
+
+            {(isLoadingUsers || isLoadingPosts) ? (
+              <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+            ) : ((userResults?.length || 0) > 0 || (postResults?.length || 0) > 0) ? (
               <View style={styles.searchList}>
-                {searchResults.map(item => renderSearchItem(item, false))}
+                {userResults?.map((item: any) => renderSearchItem(item, false))}
+                {postResults?.map((item: any) => renderSearchItem(item, false))}
               </View>
             ) : (
               <View style={styles.emptyState}>
@@ -163,29 +208,33 @@ const Search = () => {
         )}
 
         {/* Recent Searches - Hide when searching */}
-        {searchQuery.trim().length === 0 && recentSearches.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Searches</Text>
-              <Pressable onPress={clearAllRecent}>
-                <Text style={styles.clearButton}>Clear All</Text>
-              </Pressable>
-            </View>
-            <View style={styles.searchList}>
-              {recentSearches.map(item => renderSearchItem(item, true))}
-            </View>
-          </View>
-        )}
+        {searchQuery.trim().length === 0 && (
+          <>
+            {recentSearches.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Recent Searches</Text>
+                  <Pressable onPress={clearAllRecent}>
+                    <Text style={styles.clearButton}>Clear All</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.searchList}>
+                  {recentSearches.map((item: any) => renderSearchItem(item, true))}
+                </View>
+              </View>
+            )}
 
-        {/* Recommended */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommended</Text>
-          </View>
-          <View style={styles.searchList}>
-            {recommendedSearches.map(item => renderSearchItem(item, false))}
-          </View>
-        </View>
+            {/* Recommended */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recommended</Text>
+              </View>
+              <View style={styles.emptyState}>
+                <Text style={styles.emptySubtext}>Start typing to discover people and posts</Text>
+              </View>
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

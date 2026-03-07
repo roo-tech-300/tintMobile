@@ -57,7 +57,8 @@ export default {
       'mediaBucketId': process.env.EXPO_PUBLIC_MEDIA_BUCKET_ID,
       "postsCollectionId": process.env.EXPO_PUBLIC_POSTS_COLLECTION_ID,
       "commentsCollectionId": process.env.EXPO_PUBLIC_COMMENTS_COLLECTION_ID,
-      "savedPostsCollectionId": process.env.EXPO_PUBLIC_SAVED_POSTS_COLLECTION_ID
+      "savedPostsCollectionId": process.env.EXPO_PUBLIC_SAVED_POSTS_COLLECTION_ID,
+      "recentSearchCollectionId": process.env.EXPO_PUBLIC_RECENT_SEARCH_COLLECTION_ID
     },
     "owner": "eluzia"
   }
