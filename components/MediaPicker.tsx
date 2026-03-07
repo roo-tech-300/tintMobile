@@ -21,6 +21,7 @@ interface MediaPickerProps {
 
 const MediaPicker = ({ selectedMedia, onMediaChanged, onAlert, isPickingMedia, setIsPickingMedia }: MediaPickerProps) => {
     const [isLoading, setIsLoading] = useState(false);
+    const [isReceivingFile, setIsReceivingFile] = useState(false);
 
     const pickMedia = async () => {
         // Request permission

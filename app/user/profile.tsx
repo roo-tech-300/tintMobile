@@ -148,7 +148,7 @@ const Profile = () => {
                     </Pressable>
                     <Text style={styles.navTitle}>{user?.name}</Text>
                 </View>
-                <Pressable style={styles.settingsButton}>
+                <Pressable style={styles.settingsButton} onPress={() => router.push('/user/Settings')}>
                     <TintIcon name="settings" size={24} color={colors.text} />
                 </Pressable>
             </View>

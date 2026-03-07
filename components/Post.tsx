@@ -2,12 +2,14 @@ import { useIsSavedPost, useSavePost, useUnsavePost } from "@/hooks/usePosts";
 import { borderRadius, colors, fonts } from "@/theme/theme";
 import { sharePost } from "@/utils/share";
 import { ResizeMode, Video } from "expo-av";
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
 import { CommentModal } from "./CommentModal";
 import ConfirmModal from "./ConfirmModal";
 import TintIcon from "./Icon";
 import MediaViewerModal from "./MediaViewerModal";
+import { ImageWithShimmer, Shimmer } from "./Shimmer";
 import VerifiedBadge from "./VerifiedBadge";
 
 interface MediaItem {
@@ -36,6 +38,7 @@ interface PostProps {
     onEdit?: () => void;
     postId?: string;
     isVerified: boolean;
+    authorId?: string;
 }
 
 const Post: React.FC<PostProps> = ({
@@ -58,8 +61,10 @@ const Post: React.FC<PostProps> = ({
     onFollow,
     onEdit,
     postId,
-    isVerified
+    isVerified,
+    authorId
 }) => {
+    const router = useRouter();
     const [isExpanded, setIsExpanded] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [showMenu, setShowMenu] = useState(false);
@@ -105,6 +110,7 @@ const Post: React.FC<PostProps> = ({
         ...mediaItems,
         ...images.map(uri => ({ uri, type: 'image' }))
     ];
+
 
     const renderCaption = () => {
         if (!isExpanded && caption.length > maxLength) {
@@ -244,7 +250,7 @@ const Post: React.FC<PostProps> = ({
     return (
         <View style={styles.post}>
             <View style={styles.postHeader}>
-                <View style={styles.postUser}>
+                <Pressable style={styles.postUser} onPress={() => router.push(`/user/${authorId}`)}>
                     <View style={[styles.avatar, { backgroundColor: avatar ? 'transparent' : avatarColor, overflow: 'hidden' }]}>
                         {avatar ? (
                             <Image
@@ -264,7 +270,7 @@ const Post: React.FC<PostProps> = ({
                         <Text style={styles.timeAgo}>{timeAgo}</Text>
                     </View>
 
-                </View>
+                </Pressable>
                 {!isFollowing && !isUser && (
                     <Pressable
                         style={styles.followButton}
@@ -307,17 +313,16 @@ const Post: React.FC<PostProps> = ({
                             >
                                 <View style={{ width: imageWidth, height: 300 }}>
                                     {item.type === 'video' ? (
-                                        <Video
-                                            style={[styles.postImage, { width: imageWidth }]}
-                                            source={{ uri: item.uri }}
-                                            resizeMode={ResizeMode.CONTAIN}
-                                            isLooping
+                                        <VideoWithShimmer
+                                            uri={item.uri}
+                                            isVisible={isVisible}
                                             shouldPlay={isVisible && index === currentImageIndex && isPlaying && !showMediaViewer}
+                                            style={[styles.postImage, { width: imageWidth }]}
                                         />
                                     ) : (
-                                        <Image
-                                            source={{ uri: item.uri }}
-                                            style={[styles.postImage, { width: imageWidth }]}
+                                        <ImageWithShimmer
+                                            uri={item.uri}
+                                            width={imageWidth}
                                             resizeMode="cover"
                                         />
                                     )}
@@ -436,6 +441,28 @@ const Post: React.FC<PostProps> = ({
                     setShowConfirmDelete(false);
                     onDelete?.();
                 }}
+            />
+        </View>
+    );
+};
+
+const VideoWithShimmer = ({ uri, isVisible, shouldPlay, style }: { uri: string, isVisible: boolean, shouldPlay: boolean, style: any }) => {
+    const [isReady, setIsReady] = useState(false);
+
+    return (
+        <View style={{ width: '100%', height: '100%' }}>
+            {!isReady && (
+                <View style={StyleSheet.absoluteFill}>
+                    <Shimmer />
+                </View>
+            )}
+            <Video
+                style={[style, { opacity: isReady ? 1 : 0 }]}
+                source={{ uri }}
+                resizeMode={ResizeMode.CONTAIN}
+                isLooping
+                shouldPlay={shouldPlay}
+                onReadyForDisplay={() => setIsReady(true)}
             />
         </View>
     );

@@ -176,6 +176,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, isVisible = true }) => {
             onEdit={handleEdit}
             postId={post.$id}
             isVerified= {isVerified}
+            authorId={author?.$id}
         />
     );
 };

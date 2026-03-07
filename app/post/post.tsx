@@ -31,6 +31,16 @@ export default function PostPage() {
         return filteredPosts.slice(startIndex);
     }, [allPosts, userId, postId]);
 
+    const [viewableItems, setViewableItems] = React.useState<string[]>([]);
+
+    const onViewableItemsChanged = React.useRef(({ viewableItems: changedViewableItems }: any) => {
+        setViewableItems(changedViewableItems.map((item: any) => item.key));
+    }).current;
+
+    const viewabilityConfig = React.useRef({
+        itemVisiblePercentThreshold: 50
+    }).current;
+
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
@@ -52,9 +62,11 @@ export default function PostPage() {
                 keyExtractor={(item) => item.$id}
                 renderItem={({ item }) => (
                     <View style={styles.postContainer}>
-                        <FeedItem post={item} isVisible={true} />
+                        <FeedItem post={item} isVisible={viewableItems.includes(item.$id)} />
                     </View>
                 )}
+                onViewableItemsChanged={onViewableItemsChanged}
+                viewabilityConfig={viewabilityConfig}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={

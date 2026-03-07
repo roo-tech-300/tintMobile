@@ -89,7 +89,7 @@ const AddPost = () => {
             maxLength={1500}
             textAlignVertical="top"
           />
-          <Text style={styles.characterCount}>{caption.length}/500</Text>
+          <Text style={styles.characterCount}>{caption.length}/1,500</Text>
         </View>
 
         {/* Media Picker Section */}

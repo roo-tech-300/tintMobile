@@ -1,9 +1,11 @@
-import { getDbUser, getMediaResource, pictureView } from "@/appwrite/apis/auth";
+import { getMediaResource, pictureView } from "@/appwrite/apis/auth";
 import TintIcon from '@/components/Icon';
 import LoadingSpinner from "@/components/LoadingSpinner";
 
+import { getDbUser } from "@/appwrite/apis/auth";
 import { useAuth } from "@/context/AuthContext";
 import { useGetPosts } from "@/hooks/usePosts";
+import { useToggleFollow } from "@/hooks/useUser";
 import { colors, fonts } from '@/theme/theme';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -15,8 +17,6 @@ const COLUMN_COUNT = 3;
 const IMAGE_SIZE = screenWidth / COLUMN_COUNT;
 
 const PostThumbnail = ({ post, onPress }: { post: any; onPress: () => void }) => {
-    
-
     const [uri, setUri] = useState<string | null>(null);
     const mediaId = typeof post.media?.[0] === 'string' ? post.media[0] : post.media?.[0]?.$id;
 
@@ -27,7 +27,6 @@ const PostThumbnail = ({ post, onPress }: { post: any; onPress: () => void }) =>
             if (isMounted && res) setUri(res.uri);
         });
         return () => { isMounted = false; };
-
     }, [mediaId]);
 
     if (!uri) return <View style={[styles.postItem, { backgroundColor: colors.lightBunker }]} />;
@@ -41,31 +40,36 @@ const PostThumbnail = ({ post, onPress }: { post: any; onPress: () => void }) =>
 
 const Profile = () => {
     const router = useRouter();
-    const { userId } = useLocalSearchParams();
+    const { userId } = useLocalSearchParams<{ userId: string }>();
     const { user: currentUser, logout } = useAuth();
-    const { data: allPosts, isLoading: isPostsLoading } = useGetPosts();
+    const { mutate: toggleFollow } = useToggleFollow();
 
+    const { data: allPosts, isLoading: isPostsLoading } = useGetPosts();
     const [profileUser, setProfileUser] = useState<any>(null);
     const [isLoadingUser, setIsLoadingUser] = useState(true);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-    const isOwnProfile = !userId || userId === currentUser?.$id;
+    const isOwnProfile = useMemo(() => {
+        return !userId || userId === currentUser?.$id;
+    }, [userId, currentUser?.$id]);
 
     // Fetch User Data
     useEffect(() => {
         const fetchUser = async () => {
-            setIsLoadingUser(true);
             if (isOwnProfile) {
                 setProfileUser(currentUser);
-            } else if (typeof userId === 'string') {
+                setIsLoadingUser(false);
+            } else if (userId) {
+                setIsLoadingUser(true);
                 try {
                     const fetchedUser = await getDbUser(userId);
                     setProfileUser(fetchedUser);
                 } catch (error) {
                     console.error("Error fetching user profile:", error);
+                } finally {
+                    setIsLoadingUser(false);
                 }
             }
-            setIsLoadingUser(false);
         };
 
         fetchUser();
@@ -104,6 +108,29 @@ const Profile = () => {
         following: profileUser?.following?.length || 0
     };
 
+    const isFollowing = useMemo(() => {
+        if (!currentUser || !profileUser) return false;
+        return profileUser.followers?.includes(currentUser.$id);
+    }, [currentUser, profileUser]);
+
+    const handleFollow = () => {
+        if (!currentUser || !profileUser) return;
+        toggleFollow({
+            currentUserId: currentUser.$id,
+            targetUserId: profileUser.$id
+        });
+
+        // Optimistic UI update
+        const updatedFollowers = isFollowing
+            ? profileUser.followers.filter((id: string) => id !== currentUser.$id)
+            : [...(profileUser.followers || []), currentUser.$id];
+
+        setProfileUser({
+            ...profileUser,
+            followers: updatedFollowers
+        });
+    };
+
     const renderHeader = () => (
         <View style={styles.headerContent}>
             {/* Profile Image */}
@@ -127,26 +154,20 @@ const Profile = () => {
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
                 {isOwnProfile ? (
-                    <>
-                        <Pressable
-                            style={styles.actionButton}
-                            onPress={() => { /* Navigate to Edit Profile */ }}
-                        >
-                            <Text style={styles.actionButtonText}>Edit Profile</Text>
-                        </Pressable>
-                        <Pressable
-                            style={[styles.actionButton, styles.logoutButton]}
-                            onPress={logout}
-                        >
-                            <Text style={[styles.actionButtonText, styles.logoutButtonText]}>Logout</Text>
-                        </Pressable>
-                    </>
-                ) : (
                     <Pressable
                         style={styles.actionButton}
-                        onPress={() => { /* Handle Follow */ }}
+                        onPress={() => { /* Navigate to Edit Profile */ }}
                     >
-                        <Text style={styles.actionButtonText}>Follow</Text>
+                        <Text style={styles.actionButtonText}>Edit Profile</Text>
+                    </Pressable>
+                ) : (
+                    <Pressable
+                        style={[styles.actionButton, isFollowing && styles.followingButton]}
+                        onPress={handleFollow}
+                    >
+                        <Text style={[styles.actionButtonText, isFollowing && styles.followingButtonText]}>
+                            {isFollowing ? 'Unfollow' : 'Follow'}
+                        </Text>
                     </Pressable>
                 )}
             </View>
@@ -186,14 +207,6 @@ const Profile = () => {
         );
     };
 
-    if (isLoadingUser) {
-        return (
-            <SafeAreaView style={[styles.container, styles.loadingContainer]}>
-                <LoadingSpinner />
-            </SafeAreaView>
-        );
-    }
-
     return (
         <SafeAreaView style={styles.container}>
             {/* Top Navigation Bar */}
@@ -205,13 +218,13 @@ const Profile = () => {
                     <Text style={styles.navTitle}>{profileUser?.name}</Text>
                 </View>
                 {isOwnProfile && (
-                    <Pressable style={styles.settingsButton}>
+                    <Pressable style={styles.settingsButton} onPress={() => router.push('/user/Settings')}>
                         <TintIcon name="settings" size={24} color={colors.text} />
                     </Pressable>
                 )}
             </View>
 
-            {isPostsLoading ? (
+            {isLoadingUser || isPostsLoading ? (
                 <View style={styles.loadingContainer}>
                     <LoadingSpinner />
                 </View>
@@ -231,6 +244,8 @@ const Profile = () => {
                     }
                 />
             )}
+
+
         </SafeAreaView>
     );
 };

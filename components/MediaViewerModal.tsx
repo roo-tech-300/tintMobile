@@ -1,9 +1,10 @@
 import { ResizeMode, Video } from 'expo-av';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, FlatList, Image, Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Dimensions, FlatList, Modal, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import DotIndicator from './DotIndicator';
 import TintIcon from './Icon';
+import { ImageWithShimmer } from './Shimmer';
 
 interface MediaItem {
   uri: string;
@@ -22,9 +23,18 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ visible, media, startIndex, onClose }) => {
   const [currentIndex, setCurrentIndex] = useState(startIndex);
   const flatListRef = useRef<FlatList>(null);
+  const translateY = useRef(new Animated.Value(0)).current;
+
+
+  const backgroundOpacity = translateY.interpolate({
+    inputRange: [0, screenHeight * 0.5],
+    outputRange: [1, 0.4],
+    extrapolate: 'clamp',
+  });
 
   useEffect(() => {
     if (visible) {
+      translateY.setValue(0);
       setCurrentIndex(startIndex);
       // Scroll to the start index after a brief delay to ensure layout is ready
       setTimeout(() => {
@@ -40,22 +50,58 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ visible, media, sta
     }
   };
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        const { dx, dy } = gestureState;
+        // Trigger vertical swipe if movement is more vertical than horizontal
+        return Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx);
+      },
+
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 150) {
+          onClose();
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 40,
+            friction: 7
+          }).start();
+        }
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 40,
+          friction: 7
+        }).start();
+      },
+    })
+  ).current;
+
   const renderItem = ({ item, index }: { item: MediaItem; index: number }) => {
     const isFocused = index === currentIndex;
 
     return (
-      <View style={styles.mediaContainer}>
+      <View style={styles.mediaContainer} pointerEvents="box-none">
         {item.type === 'video' ? (
           <VideoItem
             uri={item.uri}
             shouldPlay={isFocused && visible}
           />
         ) : (
-          <Image
-            source={{ uri: item.uri }}
-            style={styles.image}
-            resizeMode="contain"
-          />
+          <Pressable style={{ width: '100%', height: '100%' }}>
+            <ImageWithShimmer uri={item.uri} />
+          </Pressable>
         )}
       </View>
     );
@@ -66,46 +112,61 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ visible, media, sta
   return (
     <Modal
       visible={visible}
-      transparent={false}
-      animationType="fade"
+      transparent={true}
+      animationType="none"
       onRequestClose={onClose}
+      statusBarTranslucent
     >
-      <View style={styles.container}>
-        <StatusBar hidden />
-
-        <Pressable style={styles.closeButton} onPress={onClose} hitSlop={20}>
-          <TintIcon name="cross" size={18} color="white" />
-        </Pressable>
-
-       
-        <FlatList
-          ref={flatListRef}
-          data={media}
-          renderItem={renderItem}
-          keyExtractor={(_, index) => index.toString()}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={onMomentumScrollEnd}
-          getItemLayout={(_, index) => ({
-            length: screenWidth,
-            offset: screenWidth * index,
-            index,
-          })}
-          initialScrollIndex={startIndex}
+      <View style={StyleSheet.absoluteFill}>
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: 'black', opacity: backgroundOpacity }
+          ]}
         />
 
-        {/* Dot Indicator */}
-        {media.length > 1 && (
-          <View style={styles.indicatorWrapper}>
-            <DotIndicator
-              index={currentIndex}
-              total={media.length}
-              size={7}
-              gap={10}
-            />
-          </View>
-        )}
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              transform: [{ translateY }],
+              backgroundColor: 'transparent' // Main container transparent to show animated background
+            }
+          ]}
+          {...panResponder.panHandlers}
+        >
+          <StatusBar hidden />
+
+          <FlatList
+            ref={flatListRef}
+            data={media}
+            renderItem={renderItem}
+            keyExtractor={(_, index) => index.toString()}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={onMomentumScrollEnd}
+            getItemLayout={(_, index) => ({
+              length: screenWidth,
+              offset: screenWidth * index,
+              index,
+            })}
+            initialScrollIndex={startIndex}
+            style={{ flex: 1 }}
+          />
+
+          {/* Dot Indicator */}
+          {media.length > 1 && (
+            <View style={styles.indicatorWrapper}>
+              <DotIndicator
+                index={currentIndex}
+                total={media.length}
+                size={7}
+                gap={10}
+              />
+            </View>
+          )}
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -131,24 +192,14 @@ const VideoItem = React.memo(({ uri, shouldPlay }: { uri: string; shouldPlay: bo
 
   return (
     <Pressable onPress={togglePlay} style={styles.videoContainer}>
-      {/* <Video
-        source={{ uri }}
-        style={styles.video}
-        resizeMode={ResizeMode.CONTAIN}
-        isLooping
-        shouldPlay={isPlaying}
-        useNativeControls={false}
-      /> */}
-
-
       <Video
         style={styles.video}
         source={{ uri: uri }}
         resizeMode={ResizeMode.CONTAIN}
         isLooping
         shouldPlay={isPlaying}
-    />
-      
+      />
+
     </Pressable>
   );
 });

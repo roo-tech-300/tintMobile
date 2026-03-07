@@ -10,7 +10,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export interface mediaItem  {
+export interface mediaItem {
     id?: string;
     uri: string;
     type: 'image' | 'video';
@@ -36,22 +36,22 @@ const EditPost = () => {
     useEffect(() => {
         const loadMedia = async () => {
             if (initialMedia) {
-            try {
-                const parsedMedia = JSON.parse(initialMedia as string);
-                const mediaObject = await Promise.all(
-                    parsedMedia.map(async (m : string) => {
-                        const resource = await getMediaResource(m);
-                        return resource
-                    })
-                )
-                setSelectedMedia(mediaObject);
-                setMedia(parsedMedia);
-            } catch (e) {
-                console.error("Failed to parse media", e);
+                try {
+                    const parsedMedia = JSON.parse(initialMedia as string);
+                    const mediaObject = await Promise.all(
+                        parsedMedia.map(async (m: string) => {
+                            const resource = await getMediaResource(m);
+                            return resource
+                        })
+                    )
+                    setSelectedMedia(mediaObject);
+                    setMedia(parsedMedia);
+                } catch (e) {
+                    console.error("Failed to parse media", e);
+                }
             }
-        }      
-    }
-    loadMedia();
+        }
+        loadMedia();
     }, [initialMedia]);
 
     const showAlert = (message: string, type: "error" | "success" | "info" = "error") => {
@@ -63,13 +63,13 @@ const EditPost = () => {
     };
 
     const handleMediaChange = (updatedSelectedMedia: MediaItem[]) => {
-    setSelectedMedia(updatedSelectedMedia);
-     const updatedIds = updatedSelectedMedia
-        .filter(item => item.id)    // only old ones
-        .map(item => item.id!);
+        setSelectedMedia(updatedSelectedMedia);
+        const updatedIds = updatedSelectedMedia
+            .filter(item => item.id)    // only old ones
+            .map(item => item.id!);
 
-    setMedia(updatedIds);
-};
+        setMedia(updatedIds);
+    };
 
     const handleSave = () => {
         if (!caption.trim() && selectedMedia.length === 0) {
@@ -84,7 +84,7 @@ const EditPost = () => {
         let finalIds = [...media]
         const newFiles = selectedMedia.filter(item => !item.id)
 
-        if(newFiles.length > 0){
+        if (newFiles.length > 0) {
             finalIds.push(...newFiles.map(item => item.uri))
         }
         editPost({
