@@ -103,6 +103,15 @@ export async function updateDbUser(
     }
 }
 
+export async function updateAccountName(name: string) {
+    try {
+        return await account.updateName(name);
+    } catch (error) {
+        console.error("Error updating account name", error);
+        throw error;
+    }
+}
+
 export async function uploadAvatar(fileUri: string): Promise<string> {
     try {
         // Fetch the file from the local URI

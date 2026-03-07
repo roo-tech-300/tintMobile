@@ -20,28 +20,53 @@ const COLUMN_COUNT = 3;
 const IMAGE_SIZE = screenWidth / COLUMN_COUNT;
 
 const PostThumbnail = ({ post, onPress }: { post: any; onPress: () => void }) => {
-    const [uri, setUri] = useState<string | null>(null);
-    const mediaId = typeof post.media?.[0] === 'string' ? post.media[0] : post.media?.[0]?.$id;
+    const [resource, setResource] = useState<{ uri: string; type: string } | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    // Safely get the first media ID
+    const firstMedia = post.media?.[0];
+    const mediaId = typeof firstMedia === 'string' ? firstMedia : firstMedia?.$id;
 
     useEffect(() => {
-        if (!mediaId) return;
+        if (!mediaId) {
+            setLoading(false);
+            return;
+        }
+
         let isMounted = true;
         getMediaResource(mediaId).then(res => {
-            if (isMounted && res) setUri(res.uri);
+            if (isMounted) {
+                if (res) setResource(res);
+                setLoading(false);
+            }
+        }).catch(() => {
+            if (isMounted) setLoading(false);
         });
+
         return () => { isMounted = false; };
     }, [mediaId]);
 
     return (
         <Pressable style={styles.postItem} onPress={onPress}>
-            {uri ? (
-                <ImageWithShimmer
-                    uri={uri}
-                    resizeMode="cover"
-                    borderRadius={10}
-                />
-            ) : (
+            {loading ? (
                 <Shimmer borderRadius={10} />
+            ) : resource?.uri ? (
+                <View style={{ flex: 1 }}>
+                    <ImageWithShimmer
+                        uri={resource.uri}
+                        resizeMode="cover"
+                        borderRadius={10}
+                    />
+                    {resource.type === 'video' && (
+                        <View style={styles.videoBadge}>
+                            <TintIcon name="play" size={12} color="white" />
+                        </View>
+                    )}
+                </View>
+            ) : (
+                <View style={[styles.placeholderThumbnail, { borderRadius: 10 }]}>
+                    <TintIcon name="picture" size={24} color={colors.darkText} />
+                </View>
             )}
         </Pressable>
     );
@@ -184,15 +209,17 @@ const Profile = () => {
 
             {/* Name & Info */}
             <Text style={styles.name}>{profileUser?.name || "User"}</Text>
+            {profileUser?.username && (
+                <Text style={styles.username}>@{profileUser.username}</Text>
+            )}
             <Text style={styles.bio}>{profileUser?.bio || "No bio yet."}</Text>
-            <Text style={styles.bio}>{profileUser?.department || "No department yet."}</Text>
 
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
                 {isOwnProfile ? (
                     <Pressable
                         style={styles.actionButton}
-                        onPress={() => { /* Navigate to Edit Profile */ }}
+                        onPress={() => router.push('/user/edit')}
                     >
                         <Text style={styles.actionButtonText}>Edit Profile</Text>
                     </Pressable>
@@ -365,11 +392,11 @@ const styles = StyleSheet.create({
         marginBottom: 5,
         lineHeight: 20,
     },
-    department: {
-        color: colors.darkText, // Or primary if you want it to pop
-        fontSize: 14,
+    username: {
+        color: colors.darkText,
+        fontSize: 16,
         fontFamily: fonts.regular,
-        marginBottom: 20,
+        marginBottom: 10,
     },
     actionButton: {
         backgroundColor: colors.primary,
@@ -423,6 +450,23 @@ const styles = StyleSheet.create({
     postImage: {
         width: '100%',
         height: '100%',
+    },
+    placeholderThumbnail: {
+        flex: 1,
+        backgroundColor: colors.lightBunker,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    videoBadge: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     avatarPlaceholder: {
         backgroundColor: colors.primary,

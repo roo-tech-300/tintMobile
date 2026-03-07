@@ -14,6 +14,7 @@ export type AuthUser = {
   following?: string[];
   bio?: string;
   department?: string;
+  username?: string;
   // add other fields you expect from Appwrite user object
 } | null;
 
@@ -35,6 +36,7 @@ export type DbUser = {
   followers?: string[];
   following?: string[];
   bio?: string;
+  username?: string;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
