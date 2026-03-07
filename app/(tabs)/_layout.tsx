@@ -1,65 +1,80 @@
-import { Tabs } from "expo-router";
-import { colors } from "@/theme/theme";
 import TintIcon from "@/components/Icon";
+import { colors } from "@/theme/theme";
+import { createMaterialTopTabNavigator, MaterialTopTabNavigationEventMap, MaterialTopTabNavigationOptions } from "@react-navigation/material-top-tabs";
+import { ParamListBase, TabNavigationState } from "@react-navigation/native";
+import { withLayoutContext } from "expo-router";
+import { Platform } from "react-native";
+
+const { Navigator } = createMaterialTopTabNavigator();
+
+export const MaterialTabs = withLayoutContext<
+  MaterialTopTabNavigationOptions,
+  typeof Navigator,
+  TabNavigationState<ParamListBase>,
+  MaterialTopTabNavigationEventMap
+>(Navigator);
 
 export default function TabsLayout() {
   return (
-    <Tabs
+    <MaterialTabs
+      tabBarPosition="bottom"
+      initialRouteName="home"
       screenOptions={{
-        headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.darkText,
         tabBarShowLabel: false,
+        tabBarIndicatorStyle: { height: 0 }, // Hide top indicator
         tabBarStyle: {
           backgroundColor: colors.black,
           borderTopWidth: 0,
-          height: 65,
+          height: Platform.OS === 'ios' ? 85 : 65, // Adjust for iOS home indicator
           display: "flex",
-          alignItems: "center",
           justifyContent: "center",
+          elevation: 0, // Remove shadow on Android
+          shadowOpacity: 0, // Remove shadow on iOS
         },
+        swipeEnabled: true,
       }}
     >
-      <Tabs.Screen
+      <MaterialTabs.Screen
         name="home"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <TintIcon name="house-blank" size={25} color={color} />,
+          tabBarIcon: ({ color }) => <TintIcon name="house-blank" size={24} color={color} />,
         }}
       />
 
-      <Tabs.Screen
+      <MaterialTabs.Screen
         name="search"
         options={{
-          title: "search",
-          tabBarIcon: ({ color }) => <TintIcon name="search" size={25} color={color} />,
+          title: "Search",
+          tabBarIcon: ({ color }) => <TintIcon name="search" size={24} color={color} />,
         }}
       />
 
-      <Tabs.Screen
+      <MaterialTabs.Screen
         name="addPost"
         options={{
           title: "Add",
-          tabBarIcon: ({ color }) => <TintIcon name="add" size={25} color={color} />,
+          tabBarIcon: ({ color }) => <TintIcon name="add" size={24} color={color} />,
         }}
       />
 
-      <Tabs.Screen
+      <MaterialTabs.Screen
         name="communities"
         options={{
           title: "Communities",
-          tabBarIcon: ({ color }) => <TintIcon name="users-alt" size={25} color={color} />,
+          tabBarIcon: ({ color }) => <TintIcon name="users-alt" size={24} color={color} />,
         }}
       />
 
-      <Tabs.Screen
+      <MaterialTabs.Screen
         name="courses"
         options={{
           title: "Courses",
-          tabBarIcon: ({ color }) => <TintIcon name="graduation-cap-2" size={25} color={color} />,
+          tabBarIcon: ({ color }) => <TintIcon name="graduation-cap-2" size={24} color={color} />,
         }}
       />
-
-    </Tabs>
+    </MaterialTabs>
   );
 }
