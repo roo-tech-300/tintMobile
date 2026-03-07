@@ -7,10 +7,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useGetPosts } from "@/hooks/usePosts";
 import { useToggleFollow } from "@/hooks/useUser";
 import { colors, fonts } from '@/theme/theme';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { ImageWithShimmer, Shimmer } from '@/components/Shimmer';
 
 const { width: screenWidth } = Dimensions.get('window');
 const COLUMN_COUNT = 3;
@@ -29,11 +32,17 @@ const PostThumbnail = ({ post, onPress }: { post: any; onPress: () => void }) =>
         return () => { isMounted = false; };
     }, [mediaId]);
 
-    if (!uri) return <View style={[styles.postItem, { backgroundColor: colors.lightBunker }]} />;
-
     return (
         <Pressable style={styles.postItem} onPress={onPress}>
-            <Image source={{ uri }} style={styles.postImage} resizeMode="cover" />
+            {uri ? (
+                <ImageWithShimmer
+                    uri={uri}
+                    resizeMode="cover"
+                    borderRadius={10}
+                />
+            ) : (
+                <Shimmer borderRadius={10} />
+            )}
         </Pressable>
     );
 };
@@ -47,31 +56,37 @@ const Profile = () => {
     const { data: allPosts, isLoading: isPostsLoading } = useGetPosts();
     const [profileUser, setProfileUser] = useState<any>(null);
     const [isLoadingUser, setIsLoadingUser] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
     const isOwnProfile = useMemo(() => {
         return !userId || userId === currentUser?.$id;
     }, [userId, currentUser?.$id]);
 
+    const fetchUser = async () => {
+        setError(null);
+        if (isOwnProfile) {
+            setProfileUser(currentUser);
+            setIsLoadingUser(false);
+        } else if (userId) {
+            setIsLoadingUser(true);
+            try {
+                const fetchedUser = await getDbUser(userId);
+                if (!fetchedUser) {
+                    throw new Error("User not found");
+                }
+                setProfileUser(fetchedUser);
+            } catch (err: any) {
+                console.error("Error fetching user profile:", err);
+                setError(err.message || "Failed to load profile");
+            } finally {
+                setIsLoadingUser(false);
+            }
+        }
+    };
+
     // Fetch User Data
     useEffect(() => {
-        const fetchUser = async () => {
-            if (isOwnProfile) {
-                setProfileUser(currentUser);
-                setIsLoadingUser(false);
-            } else if (userId) {
-                setIsLoadingUser(true);
-                try {
-                    const fetchedUser = await getDbUser(userId);
-                    setProfileUser(fetchedUser);
-                } catch (error) {
-                    console.error("Error fetching user profile:", error);
-                } finally {
-                    setIsLoadingUser(false);
-                }
-            }
-        };
-
         fetchUser();
     }, [userId, currentUser, isOwnProfile]);
 
@@ -115,20 +130,35 @@ const Profile = () => {
 
     const handleFollow = () => {
         if (!currentUser || !profileUser) return;
-        toggleFollow({
-            currentUserId: currentUser.$id,
-            targetUserId: profileUser.$id
-        });
+
+        const previousFollowers = [...(profileUser.followers || [])];
+        const isCurrentlyFollowing = previousFollowers.includes(currentUser.$id);
 
         // Optimistic UI update
-        const updatedFollowers = isFollowing
-            ? profileUser.followers.filter((id: string) => id !== currentUser.$id)
-            : [...(profileUser.followers || []), currentUser.$id];
+        const updatedFollowers = isCurrentlyFollowing
+            ? previousFollowers.filter((id: string) => id !== currentUser.$id)
+            : [...previousFollowers, currentUser.$id];
 
         setProfileUser({
             ...profileUser,
             followers: updatedFollowers
         });
+
+        toggleFollow(
+            {
+                currentUserId: currentUser.$id,
+                targetUserId: profileUser.$id
+            },
+            {
+                onError: (error) => {
+                    console.error("Follow failed, reverting", error);
+                    setProfileUser({
+                        ...profileUser,
+                        followers: previousFollowers
+                    });
+                }
+            }
+        );
     };
 
     const renderHeader = () => (
@@ -136,7 +166,13 @@ const Profile = () => {
             {/* Profile Image */}
             <View style={styles.avatarContainer}>
                 {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+                    <Image
+                        source={{ uri: avatarUrl }}
+                        style={styles.avatar}
+                        contentFit="cover"
+                        transition={200}
+                        cachePolicy="memory-disk"
+                    />
                 ) : (
                     <View style={[styles.avatar, styles.avatarPlaceholder]}>
                         <Text style={styles.avatarPlaceholderText}>
@@ -215,7 +251,7 @@ const Profile = () => {
                     <Pressable onPress={() => router.back()} style={styles.backButton}>
                         <TintIcon name="angle-small-left" size={30} color={colors.text} />
                     </Pressable>
-                    <Text style={styles.navTitle}>{profileUser?.name}</Text>
+                    <Text style={styles.navTitle}>{profileUser?.name || (error ? 'Error' : 'Profile')}</Text>
                 </View>
                 {isOwnProfile && (
                     <Pressable style={styles.settingsButton} onPress={() => router.push('/user/Settings')}>
@@ -224,9 +260,18 @@ const Profile = () => {
                 )}
             </View>
 
-            {isLoadingUser || isPostsLoading ? (
+            {isLoadingUser ? (
                 <View style={styles.loadingContainer}>
                     <LoadingSpinner />
+                </View>
+            ) : error ? (
+                <View style={styles.errorContainer}>
+                    <TintIcon name="info" size={50} color={colors.error} />
+                    <Text style={styles.errorTitle}>Oops! Something went wrong</Text>
+                    <Text style={styles.errorText}>{error}</Text>
+                    <Pressable style={styles.retryButton} onPress={fetchUser}>
+                        <Text style={styles.retryButtonText}>Try Again</Text>
+                    </Pressable>
                 </View>
             ) : (
                 <FlatList
@@ -417,5 +462,36 @@ const styles = StyleSheet.create({
         color: colors.darkText,
         fontFamily: fonts.regular,
         fontSize: 16,
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
+    },
+    errorTitle: {
+        color: colors.text,
+        fontSize: 20,
+        fontFamily: fonts.bold,
+        marginTop: 20,
+        marginBottom: 10,
+    },
+    errorText: {
+        color: colors.darkText,
+        fontSize: 16,
+        fontFamily: fonts.regular,
+        textAlign: 'center',
+        marginBottom: 30,
+    },
+    retryButton: {
+        backgroundColor: colors.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 30,
+        borderRadius: 25,
+    },
+    retryButtonText: {
+        color: colors.text,
+        fontSize: 16,
+        fontFamily: fonts.bold,
     },
 });

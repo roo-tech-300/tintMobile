@@ -1,7 +1,7 @@
 import { borderRadius, colors, fonts } from "@/theme/theme";
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import TintIcon from "./Icon";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -38,14 +38,16 @@ const MediaPicker = ({ selectedMedia, onMediaChanged, onAlert, isPickingMedia, s
             return;
         }
 
-        // Launch picker
         try {
             setIsLoading(true);
+            setIsReceivingFile(true); // <-- FILE RECEIVING STARTS HERE
+            setIsPickingMedia?.(true); // Notify parent
+
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.All, // Allow images and videos
+                mediaTypes: ImagePicker.MediaTypeOptions.All,
                 allowsMultipleSelection: true,
                 quality: 0.8,
-                selectionLimit: 5 - selectedMedia.length, // Limit based on remaining slots
+                selectionLimit: 5 - selectedMedia.length,
             });
 
             if (!result.canceled && result.assets) {
@@ -53,6 +55,7 @@ const MediaPicker = ({ selectedMedia, onMediaChanged, onAlert, isPickingMedia, s
                     uri: asset.uri,
                     type: asset.type as 'image' | 'video'
                 }));
+
                 onMediaChanged([...selectedMedia, ...newMedia]);
             }
         } catch (error) {
@@ -60,6 +63,8 @@ const MediaPicker = ({ selectedMedia, onMediaChanged, onAlert, isPickingMedia, s
             onAlert("Error picking media", "error");
         } finally {
             setIsLoading(false);
+            setIsReceivingFile(false); // <-- FILE RECEIVING ENDS HERE
+            setIsPickingMedia?.(false); // Notify parent
         }
     };
 
@@ -68,50 +73,45 @@ const MediaPicker = ({ selectedMedia, onMediaChanged, onAlert, isPickingMedia, s
     };
 
     return (
-        <View>
-            {/* Add Media Button */}
-            <Pressable style={styles.addImageButton} onPress={pickMedia} disabled={isPickingMedia}>
-                {isPickingMedia ? (
-                    <LoadingSpinner color={colors.primary} />
-                ) : (
-                    <>
-                        <TintIcon name="picture" size={32} color={colors.primary} />
-                        <Text style={styles.addImageText}>Select Photos or Videos</Text>
-                        <Text style={styles.addImageSubtext}>
-                            {selectedMedia.length > 0
-                                ? `${selectedMedia.length}/5 selected`
-                                : (isLoading) ? <LoadingSpinner color={colors.primary} /> : 'Max 5 photos or videos'}
-                        </Text>
-                    </>
-                )}
-            </Pressable>
+        <View style={styles.imagesGrid}>
+            {/* Existing selected media */}
+            {selectedMedia.map((item, index) => (
+                <View key={index} style={styles.imageContainer}>
+                    <Image source={{ uri: item.uri }} style={styles.selectedImage} />
 
-            {/* Selected Media Grid */}
-            {selectedMedia.length > 0 && (
-                <View style={styles.imagesGrid}>
-                    {selectedMedia.map((item, index) => (
-                        <View key={index} style={styles.imageContainer}>
-                            <Image source={{ uri: item.uri }} style={styles.selectedImage} />
-
-                            {/* Video Indicator */}
-                            {item.type === 'video' && (
-                                <View style={styles.videoIndicator}>
-                                    <TintIcon name="play" size={20} color={colors.text} />
-                                </View>
-                            )}
-
-                            <Pressable
-                                style={styles.removeImageButton}
-                                onPress={() => removeMedia(index)}
-                            >
-                                <TintIcon name="cross-circle" size={24} color={colors.error} />
-                            </Pressable>
-                            <View style={styles.imageNumber}>
-                                <Text style={styles.imageNumberText}>{index + 1}</Text>
-                            </View>
+                    {/* Video Indicator */}
+                    {item.type === 'video' && (
+                        <View style={styles.videoIndicator}>
+                            <TintIcon name="play" size={20} color={colors.text} />
                         </View>
-                    ))}
+                    )}
+
+                    {/* Remove Button */}
+                    <Pressable
+                        style={styles.removeImageButton}
+                        onPress={() => removeMedia(index)}
+                        hitSlop={10}
+                    >
+                        <TintIcon name="cross-circle" size={22} color="white" />
+                    </Pressable>
                 </View>
+            ))}
+
+            {/* Add Media Button as a tile */}
+            {selectedMedia.length < 5 && (
+                <Pressable
+                    style={styles.addImageTile}
+                    onPress={pickMedia}
+                    disabled={isPickingMedia}
+                >
+                    <View style={styles.tileContent}>
+                        {isPickingMedia || isReceivingFile ? (
+                            <LoadingSpinner color={colors.primary} />
+                        ) : (
+                            <TintIcon name="picture" size={32} color={colors.primary} />
+                        )}
+                    </View>
+                </Pressable>
             )}
         </View>
     );
@@ -120,32 +120,28 @@ const MediaPicker = ({ selectedMedia, onMediaChanged, onAlert, isPickingMedia, s
 export default MediaPicker;
 
 const styles = StyleSheet.create({
-    addImageButton: {
+    addImageTile: {
         backgroundColor: colors.lightBunker,
-        borderRadius: borderRadius.small,
-        padding: 30,
-        alignItems: "center",
-        justifyContent: "center",
         borderWidth: 2,
         borderColor: colors.primary,
         borderStyle: "dashed",
+        width: "48%",
+        aspectRatio: 1,
+        borderRadius: borderRadius.small,
+        overflow: "hidden",
+        marginBottom: 15,
     },
-    addImageText: {
-        color: colors.text,
-        fontSize: 18,
-        fontFamily: fonts.bold,
-        marginTop: 12,
-    },
-    addImageSubtext: {
-        color: colors.darkText,
-        fontSize: 14,
-        marginTop: 4,
+    tileContent: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
     },
     imagesGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 10,
+        justifyContent: "space-between",
         marginTop: 20,
+        width: "100%",
     },
     imageContainer: {
         width: "48%",
@@ -153,6 +149,7 @@ const styles = StyleSheet.create({
         borderRadius: borderRadius.small,
         overflow: "hidden",
         position: "relative",
+        marginBottom: 15,
     },
     selectedImage: {
         width: "100%",
@@ -176,8 +173,12 @@ const styles = StyleSheet.create({
         top: 8,
         right: 8,
         backgroundColor: "rgba(0, 0, 0, 0.6)",
-        borderRadius: 12,
-        zIndex: 2,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 10,
     },
     imageNumber: {
         position: "absolute",

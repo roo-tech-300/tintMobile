@@ -108,15 +108,15 @@ const AddPost = () => {
         <Pressable
           style={[
             styles.postButton,
-            ((!caption.trim() && selectedMedia.length === 0) || isPickingMedia) && styles.postButtonDisabled
+            ((!caption.trim() && selectedMedia.length === 0) || isPending || isPickingMedia) && styles.postButtonDisabled
           ]}
           onPress={handlePost}
           disabled={(!caption.trim() && selectedMedia.length === 0) || isPending || isPickingMedia}
         >
           {
             isPending ?
-              <Text style={styles.postButtonText}>{isPending ? <LoadingSpinner color={colors.text} /> : "Post"}</Text>
-              : <TintIcon name="paper-plane" size={20} color={colors.text} />
+              <LoadingSpinner color={colors.text} />
+              : <><TintIcon name="paper-plane" size={20} color={colors.text} /><Text style={styles.postButtonText}>Post</Text></>
           }
         </Pressable>
       </ScrollView>

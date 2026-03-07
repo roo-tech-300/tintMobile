@@ -2,9 +2,10 @@ import { useIsSavedPost, useSavePost, useUnsavePost } from "@/hooks/usePosts";
 import { borderRadius, colors, fonts } from "@/theme/theme";
 import { sharePost } from "@/utils/share";
 import { ResizeMode, Video } from "expo-av";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableWithoutFeedback, View } from "react-native";
 import { CommentModal } from "./CommentModal";
 import ConfirmModal from "./ConfirmModal";
 import TintIcon from "./Icon";
@@ -86,6 +87,7 @@ const Post: React.FC<PostProps> = ({
             setIsSaved(!!isSavedPost)
         }
     }, [currentUserId, postId, isSavedPost]);
+
     // Tap handling
     const lastTap = useRef<number | null>(null);
     const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -97,7 +99,6 @@ const Post: React.FC<PostProps> = ({
     // Reset playing state when index changes (auto-play next slide)
     // or when visibility changes.
     React.useEffect(() => {
-        // console.log(`Post ${userName}: isVisible=${isVisible} index=${currentImageIndex}`);
         if (isVisible) {
             setIsPlaying(true);
         } else {
@@ -207,8 +208,6 @@ const Post: React.FC<PostProps> = ({
             // Single tap detected
             lastTap.current = now;
             singleTapTimeout.current = setTimeout(() => {
-                // Execute single tap action (toggle play/pause for video)
-                // Only relevant if current media is video
                 const currentMedia = displayMedia[currentImageIndex];
                 if (currentMedia && currentMedia.type === 'video') {
                     setIsPlaying(prev => !prev);
@@ -256,7 +255,9 @@ const Post: React.FC<PostProps> = ({
                             <Image
                                 source={{ uri: avatar }}
                                 style={{ width: '100%', height: '100%' }}
-                                resizeMode="cover"
+                                contentFit="cover"
+                                transition={200}
+                                cachePolicy="memory-disk"
                             />
                         ) : (
                             <Text style={styles.avatarText}>{userInitials}</Text>

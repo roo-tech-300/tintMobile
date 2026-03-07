@@ -1,4 +1,4 @@
-import { getMediaResource, pictureView } from "@/appwrite/apis/auth";
+import { getMediaResource } from "@/appwrite/apis/auth";
 import FeedItem from "@/components/FeedItem";
 import { HomeHeader } from "@/components/HomeHeader";
 import TintIcon from "@/components/Icon";
@@ -46,7 +46,7 @@ const Home = () => {
 
   const headerComponent = (
     <>
-      <HomeHeader initials={userInitials} avatar={avatarUrl} />
+      <HomeHeader initials={userInitials} avatar={avatarUrl} userId={user?.$id} />
 
       {/* Tint Highlight */}
       <View style={styles.highlight}>

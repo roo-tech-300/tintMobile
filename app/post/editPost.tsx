@@ -154,16 +154,14 @@ const EditPost = () => {
                 <Pressable
                     style={[
                         styles.postButton,
-                        (!caption.trim() && selectedMedia.length === 0) && styles.postButtonDisabled
+                        ((!caption.trim() && selectedMedia.length === 0) || isPending || isPickingMedia) && styles.postButtonDisabled
                     ]}
                     onPress={handleSave}
-                    disabled={(!caption.trim() && selectedMedia.length === 0) || isPending}
+                    disabled={(!caption.trim() && selectedMedia.length === 0) || isPending || isPickingMedia}
                 >
                     {
                         isPending ?
-                            <Text style={styles.postButtonText}>
-                                <LoadingSpinner color={colors.text} /> Saving...
-                            </Text>
+                            <LoadingSpinner color={colors.text} />
                             :
                             <>
                                 <TintIcon name="check" size={20} color={colors.text} />
