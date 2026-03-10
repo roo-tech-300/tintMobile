@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { ID } from 'react-native-appwrite';
+import { ID, Query } from 'react-native-appwrite';
 import { databases, storage } from "../appwrite";
 
 
@@ -41,6 +41,7 @@ export const createCommunity = async ({
                 name,
                 description: description || "",
                 coverImage,
+                user: creatorId, // Add user here too
             }
         )
 
@@ -87,5 +88,89 @@ export const uploadCommunityImage = async (imageUri: string) => {
     } catch (error) {
         console.error("Error uploading community image:", error);
         throw error;
+    }
+}
+
+export const getCommunities = async () => {
+    try {
+        const communities = await databases.listRows(databaseId, communitiesCollectionId);
+        return communities.rows;
+    } catch (error) {
+        console.error("Error fetching communities:", error);
+        throw error;
+    }
+}
+
+export const getUserCommunities = async (userId: string) => {
+    try {
+        const memberships = await databases.listRows(
+            databaseId,
+            communityMembersCollectionId,
+            [Query.equal("user", userId)]
+        );
+
+        if (memberships.total === 0) return [];
+
+        const communityIds = memberships.rows.map(m => m.community);
+
+        // Fetch community details for each membership
+        const communities = await Promise.all(
+            communityIds.map(async (id) => {
+                try {
+                    return await databases.getRow(databaseId, communitiesCollectionId, id);
+                } catch (e) {
+                    return null;
+                }
+            })
+        );
+
+        return communities.filter(c => c !== null);
+    } catch (error) {
+        console.error("Error fetching user communities:", error);
+        throw error;
+    }
+}
+
+export const joinCommunity = async (communityId: string, userId: string) => {
+    try {
+        // Check if already a member
+        const existing = await databases.listRows(
+            databaseId,
+            communityMembersCollectionId,
+            [
+                Query.equal("community", communityId),
+                Query.equal("user", userId)
+            ]
+        );
+
+        if (existing.total > 0) return existing.rows[0];
+
+        return await databases.createRow(
+            databaseId,
+            communityMembersCollectionId,
+            ID.unique(),
+            {
+                community: communityId,
+                user: userId,
+                role: 'member'
+            }
+        );
+    } catch (error) {
+        console.error("Error joining community:", error);
+        throw error;
+    }
+}
+
+export const getCommunityMembersCount = async (communityId: string) => {
+    try {
+        const members = await databases.listRows(
+            databaseId,
+            communityMembersCollectionId,
+            [Query.equal("community", communityId)]
+        );
+        return members.total;
+    } catch (error) {
+        console.error("Error getting community members count:", error);
+        return 0;
     }
 }

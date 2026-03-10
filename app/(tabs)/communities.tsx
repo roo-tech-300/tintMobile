@@ -1,113 +1,100 @@
+import { pictureView } from "@/appwrite/apis/auth";
 import { CreateCommunityModal } from "@/components/CreateCommunityModal";
 import TintIcon from "@/components/Icon";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { useAuth } from "@/context/AuthContext";
+import { useGetCommunities, useGetUserCommunities, useJoinCommunity } from "@/hooks/useCommunities";
 import { borderRadius, colors, fonts } from "@/theme/theme";
-import React, { useState } from "react";
+import { getInitials } from "@/utils/stringUtils";
+import React, { useEffect, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-interface Community {
-  id: string;
-  name: string;
-  avatar: string;
-  lastMessage?: string;
-  timeAgo?: string;
-  members: number;
-  unreadCount?: number;
-  description?: string;
-}
+// Helper component to resolve and display community cover images
+const CommunityAvatar = ({ coverImageId, name, size = 56 }: { coverImageId?: string; name: string; size?: number }) => {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (coverImageId) {
+      pictureView(coverImageId).then(url => {
+        if (url) setImageUrl(url.toString());
+      });
+    }
+  }, [coverImageId]);
+
+  const borderRadiusVal = size / 2;
+
+  if (imageUrl) {
+    return (
+      <Image
+        source={{ uri: imageUrl }}
+        style={[styles.avatar, { width: size, height: size, borderRadius: borderRadiusVal }]}
+      />
+    );
+  }
+
+  return (
+    <View style={[styles.avatar, styles.avatarPlaceholder, { width: size, height: size, borderRadius: borderRadiusVal }]}>
+      <Text style={[styles.avatarPlaceholderText, { fontSize: size * 0.35 }]}>{getInitials(name)}</Text>
+    </View>
+  );
+};
+
+// Helper to show member count
+const MemberCount = ({ communityId }: { communityId: string }) => {
+  // We'll just show a placeholder for now, you can integrate useGetCommunityMembersCount if needed
+  return null;
+};
 
 const Communities = () => {
+  const { user } = useAuth();
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [myCommunities] = useState<Community[]>([
-    {
-      id: "1",
-      name: "Computer Engineering 300lvl",
-      avatar: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400",
-      lastMessage: "Has anyone attempted the final project yet?",
-      timeAgo: "2m",
-      members: 1250,
-      unreadCount: 3,
-    },
-    {
-      id: "2",
-      name: "Design Hub",
-      avatar: "https://images.unsplash.com/photo-1561070791-2526d30994b5?w=400",
-      lastMessage: "Check out these new Figma plugins I found today.",
-      timeAgo: "15m",
-      members: 890,
-    },
-    {
-      id: "3",
-      name: "Startup Founders",
-      avatar: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=400",
-      lastMessage: "Looking for a co-founder for a fintech app. DM me if interested.",
-      timeAgo: "1h",
-      members: 3400,
-      unreadCount: 1,
-    },
-  ]);
 
-  const [recommendedCommunities] = useState<Community[]>([
-    {
-      id: "4",
-      name: "Gaming Lounge",
-      avatar: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=400",
-      members: 5600,
-      description: "The ultimate place for gamers to connect and play.",
-    },
-    {
-      id: "5",
-      name: "Book Club",
-      avatar: "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400",
-      members: 450,
-      description: "Monthly book discussions and reading challenges.",
-    },
-    {
-      id: "6",
-      name: "Photography",
-      avatar: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400",
-      members: 1200,
-      description: "Share your best shots and get feedback from pros.",
-    },
-  ]);
+  const { data: allCommunities, isLoading: isAllLoading } = useGetCommunities();
+  const { data: userCommunities, isLoading: isUserLoading } = useGetUserCommunities(user?.$id);
+  const { mutate: joinCommunity, isPending: isJoining } = useJoinCommunity();
 
-  const renderCommunityItem = (item: Community) => (
-    <Pressable key={item.id} style={styles.communityItem}>
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
+  // Filter recommended = all communities minus the ones user already belongs to
+  const userCommunityIds = new Set((userCommunities || []).map((c: any) => c.$id));
+  const recommendedCommunities = (allCommunities || []).filter((c: any) => !userCommunityIds.has(c.$id));
 
+  const handleJoin = (communityId: string) => {
+    if (!user?.$id) return;
+    joinCommunity({ communityId, userId: user.$id });
+  };
+
+  const renderCommunityItem = (item: any) => (
+    <Pressable key={item.$id} style={styles.communityItem}>
+      <CommunityAvatar coverImageId={item.coverImage} name={item.name} size={56} />
       <View style={styles.contentContainer}>
         <View style={styles.headerRow}>
-          <Text style={styles.communityName}>{item.name}</Text>
-          {item.timeAgo && <Text style={styles.timeAgo}>{item.timeAgo}</Text>}
+          <Text style={styles.communityName} numberOfLines={1}>{item.name}</Text>
         </View>
-
-        <View style={styles.messageRow}>
+        {item.description ? (
           <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage}
+            {item.description}
           </Text>
-          {item.unreadCount && item.unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>{item.unreadCount}</Text>
-            </View>
-          )}
-        </View>
+        ) : null}
       </View>
     </Pressable>
   );
 
-  const renderRecommendedItem = (item: Community) => (
-    <Pressable key={item.id} style={styles.recommendedItem}>
-      <Image source={{ uri: item.avatar }} style={styles.recommendedAvatar} />
+  const renderRecommendedItem = (item: any) => (
+    <Pressable key={item.$id} style={styles.recommendedItem}>
+      <CommunityAvatar coverImageId={item.coverImage} name={item.name} size={50} />
       <View style={styles.recommendedContent}>
-        <Text style={styles.communityName}>{item.name}</Text>
-        <Text style={styles.memberCount}>{item.members.toLocaleString()} members</Text>
-        <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
+        <Text style={styles.communityName} numberOfLines={1}>{item.name}</Text>
+        {item.description ? (
+          <Text style={styles.description} numberOfLines={2}>{item.description}</Text>
+        ) : null}
       </View>
-      <Pressable style={styles.joinButton}>
+      <Pressable style={styles.joinButton} onPress={() => handleJoin(item.$id)} disabled={isJoining}>
         <Text style={styles.joinButtonText}>Join</Text>
       </Pressable>
     </Pressable>
   );
+
+  const isLoading = isAllLoading || isUserLoading;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -118,23 +105,39 @@ const Communities = () => {
         </Pressable>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* My Communities */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Communities</Text>
-          <View style={styles.listContent}>
-            {myCommunities.map(renderCommunityItem)}
-          </View>
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <LoadingSpinner color={colors.primary} />
         </View>
+      ) : (
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* My Communities */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Your Communities</Text>
+            <View style={styles.listContent}>
+              {userCommunities && userCommunities.length > 0 ? (
+                userCommunities.map(renderCommunityItem)
+              ) : (
+                <View style={styles.emptyState}>
+                  <TintIcon name="people" size={40} color={colors.darkText} />
+                  <Text style={styles.emptyText}>You haven't joined any communities yet.</Text>
+                </View>
+              )}
+            </View>
+          </View>
 
-        {/* Recommended Communities */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recommended for You</Text>
-          <View style={styles.listContent}>
-            {recommendedCommunities.map(renderRecommendedItem)}
-          </View>
-        </View>
-      </ScrollView>
+          {/* Recommended Communities */}
+          {recommendedCommunities.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Recommended for You</Text>
+              <View style={styles.listContent}>
+                {recommendedCommunities.map(renderRecommendedItem)}
+              </View>
+            </View>
+          )}
+        </ScrollView>
+      )}
+
       <CreateCommunityModal
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
@@ -152,6 +155,11 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   header: {
     flexDirection: "row",
@@ -202,6 +210,15 @@ const styles = StyleSheet.create({
     marginRight: 16,
     backgroundColor: colors.lightBunker,
   },
+  avatarPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarPlaceholderText: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+    fontSize: 20,
+  },
   contentContainer: {
     flex: 1,
   },
@@ -215,16 +232,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: fonts.bold,
     color: colors.text,
-  },
-  timeAgo: {
-    fontSize: 12,
-    color: colors.darkText,
-    fontFamily: fonts.regular,
-  },
-  messageRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flex: 1,
   },
   lastMessage: {
     fontSize: 14,
@@ -233,19 +241,16 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  unreadBadge: {
-    backgroundColor: colors.primary,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+  emptyState: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 6,
+    paddingVertical: 40,
+    gap: 12,
   },
-  unreadText: {
-    fontSize: 10,
-    color: colors.text,
-    fontFamily: fonts.bold,
+  emptyText: {
+    color: colors.darkText,
+    fontFamily: fonts.regular,
+    fontSize: 14,
   },
   recommendedItem: {
     flexDirection: "row",
@@ -255,27 +260,15 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.small,
     marginBottom: 12,
   },
-  recommendedAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 16,
-    backgroundColor: colors.black,
-  },
   recommendedContent: {
     flex: 1,
     marginRight: 12,
-  },
-  memberCount: {
-    fontSize: 12,
-    color: colors.primary,
-    fontFamily: fonts.bold,
-    marginBottom: 2,
   },
   description: {
     fontSize: 12,
     color: colors.darkText,
     fontFamily: fonts.regular,
+    marginTop: 4,
   },
   joinButton: {
     backgroundColor: colors.primary,
