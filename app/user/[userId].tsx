@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useGetPosts } from "@/hooks/usePosts";
 import { useToggleFollow } from "@/hooks/useUser";
 import { colors, fonts } from '@/theme/theme';
+import { getInitials } from "@/utils/stringUtils";
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -201,7 +202,7 @@ const Profile = () => {
                 ) : (
                     <View style={[styles.avatar, styles.avatarPlaceholder]}>
                         <Text style={styles.avatarPlaceholderText}>
-                            {profileUser?.name?.charAt(0).toUpperCase() || "U"}
+                            {getInitials(profileUser?.name)}
                         </Text>
                     </View>
                 )}

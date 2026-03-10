@@ -4,6 +4,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { useAuth } from "@/context/AuthContext";
 import { useUpdateProfile } from "@/hooks/useUser";
 import { borderRadius, colors, fonts } from '@/theme/theme';
+import { getInitials } from "@/utils/stringUtils";
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -109,7 +110,7 @@ const EditProfile = () => {
                             ) : (
                                 <View style={[styles.avatar, styles.avatarPlaceholder]}>
                                     <Text style={styles.avatarPlaceholderText}>
-                                        {name?.charAt(0).toUpperCase() || "U"}
+                                        {getInitials(name)}
                                     </Text>
                                 </View>
                             )}

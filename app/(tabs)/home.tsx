@@ -7,6 +7,7 @@ import { TintHighlightCard } from "@/components/TintHighlightCard";
 import { useAuth } from "@/context/AuthContext";
 import { useGetPosts } from "@/hooks/usePosts";
 import { borderRadius, colors, fonts } from "@/theme/theme";
+import { getInitials } from "@/utils/stringUtils";
 import { useIsFocused } from "@react-navigation/native";
 import React from "react";
 import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -19,7 +20,7 @@ const Home = () => {
   const [viewableItemId, setViewableItemId] = React.useState<string | null>(null);
   const isFocused = useIsFocused();
 
-  const userInitials = user?.name?.split(" ").map((name) => name.charAt(0).toUpperCase()).join("") || "U";
+  const userInitials = getInitials(user?.name);
 
   React.useEffect(() => {
     const fetchAvatar = async () => {

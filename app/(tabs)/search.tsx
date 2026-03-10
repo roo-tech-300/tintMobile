@@ -1,13 +1,94 @@
+import { pictureView } from "@/appwrite/apis/auth";
 import TintIcon from "@/components/Icon";
 import { useAuth } from "@/context/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useClearRecentSearches, useDeleteRecentSearch, useGetRecentSearches, useSaveRecentSearch, useSearchPosts, useSearchUsers } from "@/hooks/useSearch";
 import { colors, fonts } from "@/theme/theme";
 import { getAvatarColorForUser } from "@/utils/avatarColors";
+import { getInitials } from "@/utils/stringUtils";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const RecentAvatar = ({ type, id, displayName, avatarId }: any) => {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (type === "user" && avatarId) {
+      pictureView(avatarId).then(res => {
+        if (isMounted && res) setUrl(res.toString());
+      }).catch(e => console.log("Recent avatar error:", e));
+    }
+    return () => { isMounted = false; };
+  }, [type, avatarId]);
+
+  if (type === "user") {
+    if (url) {
+      return (
+        <Image
+          source={{ uri: url }}
+          style={{ width: "100%", height: "100%", borderRadius: 24 }}
+          contentFit="cover"
+        />
+      );
+    }
+    return <Text style={styles.avatarText}>{getInitials(displayName)}</Text>;
+  }
+
+  if (type === "post") {
+    return <TintIcon name="document-text" size={18} color={colors.text} />;
+  }
+
+  return <TintIcon name="clock" size={18} color={colors.darkText} />;
+};
+
+const SearchUserResult = ({ item, type, typeIcon, id, displayName, displayUsername, displayInitials, onPress }: any) => {
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (type === "user" && item.avatar) {
+      pictureView(item.avatar).then(url => {
+        if (isMounted && url) {
+          setAvatarUrl(url.toString());
+        }
+      }).catch((e) => console.log("Error fetching avatar in search:", e));
+    }
+    return () => { isMounted = false; };
+  }, [type, item.avatar]);
+
+  return (
+    <Pressable
+      style={styles.searchItem}
+      onPress={() => onPress(item, type as any)}
+    >
+      <View style={[styles.avatar, { backgroundColor: getAvatarColorForUser(id) }]}>
+        {type === "user" && avatarUrl ? (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={{ width: "100%", height: "100%", borderRadius: 24 }}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+          />
+        ) : type === "user" ? (
+          <Text style={styles.avatarText}>{displayInitials}</Text>
+        ) : (
+          <TintIcon name={typeIcon!} size={20} color={colors.text} />
+        )}
+      </View>
+      <View style={styles.searchItemContent}>
+        <View style={styles.nameRow}>
+          <Text style={styles.searchItemName} numberOfLines={1}>{displayName}</Text>
+        </View>
+        <Text style={styles.searchItemUsername} numberOfLines={1}>{displayUsername}</Text>
+      </View>
+    </Pressable>
+  );
+};
 
 const Search = () => {
   const { user: currentUser } = useAuth();
@@ -27,9 +108,10 @@ const Search = () => {
 
   const handleResultPress = (item: any, type: "user" | "post") => {
     // We encode the type and ID into the search value so we can style recent searches properly
-    // format: type|id|displayValue
+    // format: type|id|displayValue|avatarId
     const displayValue = type === "user" ? item.name : item.caption;
-    const searchValue = `${type}|${item.$id}|${displayValue}`;
+    const avatar = type === "user" ? (item.avatar || "") : "";
+    const searchValue = `${type}|${item.$id}|${displayValue}|${avatar}`;
 
     if (searchValue && currentUser?.$id) {
       saveSearchMutation({ userId: currentUser.$id, searchValue });
@@ -79,12 +161,14 @@ const Search = () => {
     let isEncoded = false;
 
     if (isRecent) {
-      // Check if it's an encoded string (type|id|name)
+      // Check if it's an encoded string (type|id|name|avatar)
+      let avatarId = "";
       if (item.searchValue.includes("|")) {
-        const [t, i, n] = item.searchValue.split("|");
+        const [t, i, n, a] = item.searchValue.split("|");
         type = t || "user";
         id = i || item.$id;
         displayName = n || item.searchValue;
+        avatarId = a || "";
         isEncoded = true;
       } else {
         // Fallback for old/simple search strings
@@ -97,16 +181,10 @@ const Search = () => {
         <Pressable
           key={item.$id}
           style={styles.searchItem}
-          onPress={() => isEncoded ? handleResultPress({ $id: id, name: displayName, caption: displayName }, type as any) : setSearchQuery(item.searchValue)}
+          onPress={() => isEncoded ? handleResultPress({ $id: id, name: displayName, caption: displayName, avatar: avatarId }, type as any) : setSearchQuery(item.searchValue)}
         >
           <View style={[styles.avatar, { backgroundColor: isEncoded ? getAvatarColorForUser(id) : colors.lightBunker }]}>
-            {type === "user" ? (
-              <TintIcon name="user" size={18} color={colors.text} />
-            ) : type === "post" ? (
-              <TintIcon name="document-text" size={18} color={colors.text} />
-            ) : (
-              <TintIcon name="clock" size={18} color={colors.darkText} />
-            )}
+            <RecentAvatar type={type} id={id} displayName={displayName} avatarId={avatarId} />
           </View>
           <View style={styles.searchItemContent}>
             <View style={styles.nameRow}>
@@ -134,28 +212,20 @@ const Search = () => {
     // Normalize display data
     displayName = type === "user" ? item.name : item.caption;
     displayUsername = type === "user" ? `@${item.username}` : `Posted by ${item.user?.name || 'Unknown'}`;
-    displayInitials = type === "user" ? (item.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase() || "??") : "PO";
+    displayInitials = type === "user" ? getInitials(item.name) : "PO";
 
     return (
-      <Pressable
+      <SearchUserResult
         key={item.$id}
-        style={styles.searchItem}
-        onPress={() => handleResultPress(item, type as any)}
-      >
-        <View style={[styles.avatar, { backgroundColor: getAvatarColorForUser(id) }]}>
-          {type === "user" ? (
-            <Text style={styles.avatarText}>{displayInitials}</Text>
-          ) : (
-            <TintIcon name={typeIcon!} size={20} color={colors.text} />
-          )}
-        </View>
-        <View style={styles.searchItemContent}>
-          <View style={styles.nameRow}>
-            <Text style={styles.searchItemName} numberOfLines={1}>{displayName}</Text>
-          </View>
-          <Text style={styles.searchItemUsername} numberOfLines={1}>{displayUsername}</Text>
-        </View>
-      </Pressable>
+        item={item}
+        type={type}
+        typeIcon={typeIcon!}
+        id={id}
+        displayName={displayName}
+        displayUsername={displayUsername}
+        displayInitials={displayInitials}
+        onPress={(item: any, type: any) => handleResultPress(item, type)}
+      />
     );
   };
 

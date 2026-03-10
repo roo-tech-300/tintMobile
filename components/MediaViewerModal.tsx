@@ -3,7 +3,6 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Dimensions, FlatList, Modal, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import DotIndicator from './DotIndicator';
-import TintIcon from './Icon';
 import { ImageWithShimmer } from './Shimmer';
 
 interface MediaItem {
@@ -100,7 +99,7 @@ const MediaViewerModal: React.FC<MediaViewerModalProps> = ({ visible, media, sta
           />
         ) : (
           <Pressable style={{ width: '100%', height: '100%' }}>
-            <ImageWithShimmer uri={item.uri} />
+            <ImageWithShimmer uri={item.uri} resizeMode="contain" />
           </Pressable>
         )}
       </View>

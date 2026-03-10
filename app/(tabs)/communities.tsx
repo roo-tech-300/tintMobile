@@ -1,3 +1,4 @@
+import { CreateCommunityModal } from "@/components/CreateCommunityModal";
 import TintIcon from "@/components/Icon";
 import { borderRadius, colors, fonts } from "@/theme/theme";
 import React, { useState } from "react";
@@ -16,12 +17,13 @@ interface Community {
 }
 
 const Communities = () => {
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const [myCommunities] = useState<Community[]>([
     {
       id: "1",
-      name: "Tech Enthusiasts",
+      name: "Computer Engineering 300lvl",
       avatar: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400",
-      lastMessage: "Has anyone tried the new React compiler yet? It looks promising!",
+      lastMessage: "Has anyone attempted the final project yet?",
       timeAgo: "2m",
       members: 1250,
       unreadCount: 3,
@@ -111,7 +113,7 @@ const Communities = () => {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Communities</Text>
-        <Pressable style={styles.createButton}>
+        <Pressable style={styles.createButton} onPress={() => setIsModalVisible(true)}>
           <TintIcon name="add" size={25} color={colors.primary} />
         </Pressable>
       </View>
@@ -133,6 +135,10 @@ const Communities = () => {
           </View>
         </View>
       </ScrollView>
+      <CreateCommunityModal
+        visible={isModalVisible}
+        onClose={() => setIsModalVisible(false)}
+      />
     </SafeAreaView>
   );
 };

@@ -58,7 +58,9 @@ export default {
       "postsCollectionId": process.env.EXPO_PUBLIC_POSTS_COLLECTION_ID,
       "commentsCollectionId": process.env.EXPO_PUBLIC_COMMENTS_COLLECTION_ID,
       "savedPostsCollectionId": process.env.EXPO_PUBLIC_SAVED_POSTS_COLLECTION_ID,
-      "recentSearchCollectionId": process.env.EXPO_PUBLIC_RECENT_SEARCH_COLLECTION_ID
+      "recentSearchCollectionId": process.env.EXPO_PUBLIC_RECENT_SEARCH_COLLECTION_ID,
+      "communitiesCollectionId": process.env.EXPO_PUBLIC_COMMUNITIES_COLLECTION_ID,
+      "communityMembersCollectionId": process.env.EXPO_PUBLIC_COMMUNITY_MEMBERS_COLLECTION_ID,
     },
     "owner": "eluzia"
   }
