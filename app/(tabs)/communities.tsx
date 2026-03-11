@@ -112,19 +112,27 @@ const Communities = () => {
       ) : (
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {/* My Communities */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Your Communities</Text>
-            <View style={styles.listContent}>
-              {userCommunities && userCommunities.length > 0 ? (
-                userCommunities.map(renderCommunityItem)
-              ) : (
-                <View style={styles.emptyState}>
-                  <TintIcon name="people" size={40} color={colors.darkText} />
-                  <Text style={styles.emptyText}>You haven't joined any communities yet.</Text>
-                </View>
-              )}
+          {userCommunities && userCommunities.length > 0 ? (
+            <View style={styles.section}>
+              <View style={styles.listContent}>
+                {userCommunities.map(renderCommunityItem)}
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconContainer}>
+                <TintIcon name="people" size={48} color={colors.primary} />
+              </View>
+              <Text style={styles.emptyTitle}>No Communities Yet</Text>
+              <Text style={styles.emptyText}>
+                Create or join a community to connect with people who share your interests.
+              </Text>
+              <Pressable style={styles.emptyCreateBtn} onPress={() => setIsModalVisible(true)}>
+                <TintIcon name="add" size={18} color={colors.text} />
+                <Text style={styles.emptyCreateBtnText}>Create a Community</Text>
+              </Pressable>
+            </View>
+          )}
 
           {/* Recommended Communities */}
           {recommendedCommunities.length > 0 && (
@@ -244,12 +252,44 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 40,
-    gap: 12,
+    paddingVertical: 50,
+    paddingHorizontal: 40,
+    gap: 14,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 6,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 20,
   },
   emptyText: {
     color: colors.darkText,
     fontFamily: fonts.regular,
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  emptyCreateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+    marginTop: 10,
+  },
+  emptyCreateBtnText: {
+    color: colors.text,
+    fontFamily: fonts.bold,
     fontSize: 14,
   },
   recommendedItem: {
